@@ -210,6 +210,7 @@ public final class LiveDeviceTest extends InstrumentationTestCase {
         JSONObject snapshot=new JSONObject();
         snapshot.put("status",state.status);snapshot.put("sharing",state.sharing);
         snapshot.put("vpnConnected",state.vpnConnected);snapshot.put("busy",state.busy);
+        snapshot.put("discoveryState",state.discoveryState);snapshot.put("bootstrapConfigured",!state.discoveryURL.isEmpty());
         snapshot.put("publicNetwork",state.publicNetwork);snapshot.put("networkDetail",state.networkDetail);
         snapshot.put("publicIp",state.publicIp);snapshot.put("country",state.country);
         snapshot.put("clients",state.clients);snapshot.put("sharedBytes",state.sharedBytes);
@@ -219,6 +220,7 @@ public final class LiveDeviceTest extends InstrumentationTestCase {
             if(peers.length()>=64)break;
             JSONObject p=new JSONObject();p.put("id",peer.id);p.put("host",peer.host);
             p.put("reachable",peer.reachable);p.put("country",peer.country);p.put("latencyMs",peer.latencyMs);
+            p.put("autoDiscovered",peer.autoDiscovered);p.put("announced",peer.announced);
             peers.put(p);
         }
         snapshot.put("peers",peers);

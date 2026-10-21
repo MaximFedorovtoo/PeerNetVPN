@@ -29,7 +29,11 @@ public final class AutoDiscoveryDeviceTest extends InstrumentationTestCase {
         assertFalse("Controller must not have an active VPN during configuration",before.vpnConnected);
         controller.setBootstrapUrl(bootstrap);
         assertEquals("Normalized bootstrap URL must be applied",bootstrap,controller.snapshot().discoveryURL);
+        // Instrumentation can exit before SharedPreferences.apply reaches disk.
+        assertTrue("Bootstrap must survive the instrumentation process",contextPreferences().edit().commit());
     }
+
+    private android.content.SharedPreferences contextPreferences(){return getInstrumentation().getTargetContext().getSharedPreferences("node",Context.MODE_PRIVATE);}
 
     public void testHold()throws Exception {
         Bundle args=((InstrumentationTestRunner)getInstrumentation()).getArguments();
