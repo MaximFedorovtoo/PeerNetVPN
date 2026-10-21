@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="discovery_title">Ricerca automatica</string>
+  <string name="discovery_help">Attiva la condivisione, scegli una regione e connettiti a un nodo. Il server iniziale aiuta i telefoni a trovare i primi contatti senza scambiare codici.</string>
+  <string name="discovery_catalog_notice">È mostrata solo la parte di rete scoperta. Paesi e posti liberi sono dichiarazioni firmate dei partecipanti; un annuncio non conferma la connessione.</string>
+  <string name="bootstrap_title">Server iniziale</string>
+  <string name="bootstrap_help">Indirizzo HTTPS facoltativo. Il server scambia annunci firmati temporanei e messaggi di abbinamento cifrati. Il traffico VPN passa attraverso i partecipanti. I telefoni già connessi continuano a scambiare il catalogo dopo lo spegnimento del server; un nuovo accesso potrebbe richiederlo di nuovo.</string>
+  <string name="bootstrap_edit">Imposta indirizzo HTTPS</string>
+  <string name="bootstrap_hint">https://server.example/v1/exchange</string>
+  <string name="bootstrap_invalid">Inserisci un indirizzo HTTPS o /v1/exchange, senza credenziali, parametri o frammenti.</string>
+  <string name="discovery_state">Ricerca: %1$s</string>
+  <string name="discovery_not_configured">Nessun indirizzo iniziale o contatto noto</string>
+  <string name="discovery_starting">In attesa di condivisione e misurazione della velocità</string>
+  <string name="discovery_online">Scambio del catalogo attivo</string>
+  <string name="discovery_offline">Nessun contatto del catalogo disponibile; nuovo tentativo</string>
+  <string name="discovery_pairing">Connessione cifrata con il partecipante in corso</string>
+  <string name="discovery_hosting">Endpoint iniziale locale attivo sulla porta %1$d</string>
+  <string name="discovery_regions">Regione</string>
+  <string name="discovery_all">Tutte le regioni</string>
+  <string name="discovery_africa">Africa</string>
+  <string name="discovery_americas">Americhe</string>
+  <string name="discovery_asia">Asia</string>
+  <string name="discovery_europe">Europa</string>
+  <string name="discovery_oceania">Oceania</string>
+  <string name="discovery_unknown">Regione sconosciuta</string>
+  <string name="discovery_empty">Nessun nodo trovato in questa regione.</string>
+  <string name="discovery_announced">Annunciato · %1$d posti liberi su 3. Connessione non ancora verificata.</string>
+  <string name="discovery_manual">Abbinamento manuale · metodo di riserva</string>
+</resources>

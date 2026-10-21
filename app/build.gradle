@@ -1,0 +1,31 @@
+plugins { id 'com.android.application' }
+android {
+    namespace 'org.uzel.app'
+    compileSdk 35
+    defaultConfig {
+        applicationId 'org.uzel.app'
+        minSdk 29
+        targetSdk 35
+        versionCode 5
+        versionName '0.5.0'
+        testInstrumentationRunner 'android.test.InstrumentationTestRunner'
+    }
+    useLibrary 'android.test.runner'
+    useLibrary 'android.test.base'
+    bundle { language { enableSplit = false } }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+}
+dependencies {
+    implementation project(':core')
+    // Run tools/bootstrap-traversal.ps1; pinned MavenCentral AAR hash is checked there.
+    implementation files(rootProject.file('.tools/traversal/android-144.7559.15.aar'))
+    implementation files('libs/hev-socks5-tunnel-2.18.0.aar')
+}

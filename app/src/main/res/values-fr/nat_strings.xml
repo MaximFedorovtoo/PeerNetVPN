@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="nat_title">Association directe</string>
+    <string name="nat_help">Activez le partage sur les deux téléphones. Créez et envoyez une invitation, puis importez la réponse. La connexion directe utilise un STUN public ; certains réseaux nécessitent un participant relais accessible.</string>
+    <string name="nat_create">Créer une invitation</string>
+    <string name="nat_import">Importer une invitation ou réponse</string>
+    <string name="nat_share">Partager le code</string>
+    <string name="nat_start_sharing">Activez le partage au préalable.</string>
+    <string name="nat_connecting">Recherche du chemin direct…</string>
+    <string name="nat_offer_ready">Envoyez cette invitation et importez la réponse.</string>
+    <string name="nat_answer_ready">Renvoyez la réponse au premier téléphone.</string>
+    <string name="nat_connected">Canal direct prêt. Choisissez le nœud pour lancer le VPN.</string>
+    <string name="nat_invalid">Code invalide ou réponse incompatible.</string>
+    <string name="nat_expired">Association expirée. Créez une nouvelle invitation.</string>
+    <string name="nat_unavailable">Canal direct indisponible ou limite atteinte.</string>
+    <string name="nat_idle">Prêt à associer.</string>
+    <string name="nat_secret_notice">Ce code donne accès à votre nœud. Envoyez-le uniquement au participant prévu. Validité maximale : 5 minutes. Renouvelez après un changement de réseau.</string>
+    <string name="nat_copy">Copier le code</string>
+</resources>

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="discovery_title">Découverte automatique</string>
+  <string name="discovery_help">Activez le partage, choisissez une région et connectez-vous à un nœud. Le serveur de démarrage aide les téléphones à trouver leurs premiers contacts sans échange de codes.</string>
+  <string name="discovery_catalog_notice">Seule la partie découverte du réseau est affichée. Les pays et places libres sont déclarés et signés par les participants ; une annonce ne prouve pas la connectivité.</string>
+  <string name="bootstrap_title">Serveur de démarrage</string>
+  <string name="bootstrap_help">Adresse HTTPS facultative. Le serveur échange des annonces signées temporaires et des messages de jumelage chiffrés. Le trafic VPN passe par les participants. Les téléphones déjà connectés continuent à échanger le catalogue après son arrêt ; une nouvelle entrée peut le nécessiter à nouveau.</string>
+  <string name="bootstrap_edit">Définir l’adresse HTTPS</string>
+  <string name="bootstrap_hint">https://server.example/v1/exchange</string>
+  <string name="bootstrap_invalid">Saisissez une adresse HTTPS ou le chemin /v1/exchange, sans identifiants, paramètres ni fragment.</string>
+  <string name="discovery_state">Découverte : %1$s</string>
+  <string name="discovery_not_configured">Aucune adresse de démarrage ni contact connu</string>
+  <string name="discovery_starting">En attente du partage et de la mesure de débit</string>
+  <string name="discovery_online">Échange du catalogue actif</string>
+  <string name="discovery_offline">Aucun contact du catalogue disponible ; nouvelle tentative</string>
+  <string name="discovery_pairing">Établissement de la connexion chiffrée avec le participant</string>
+  <string name="discovery_hosting">Point de démarrage local actif sur le port %1$d</string>
+  <string name="discovery_regions">Région</string>
+  <string name="discovery_all">Toutes les régions</string>
+  <string name="discovery_africa">Afrique</string>
+  <string name="discovery_americas">Amériques</string>
+  <string name="discovery_asia">Asie</string>
+  <string name="discovery_europe">Europe</string>
+  <string name="discovery_oceania">Océanie</string>
+  <string name="discovery_unknown">Région inconnue</string>
+  <string name="discovery_empty">Aucun nœud trouvé dans cette région.</string>
+  <string name="discovery_announced">Annoncé · %1$d places libres sur 3. Connexion non vérifiée.</string>
+  <string name="discovery_manual">Jumelage manuel · solution de secours</string>
+</resources>

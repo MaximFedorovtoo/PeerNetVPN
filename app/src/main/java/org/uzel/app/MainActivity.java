@@ -1,0 +1,565 @@
+package org.uzel.app;
+
+import android.Manifest;
+import android.app.Activity;
+import android.app.AlertDialog;
+import android.content.ClipData;
+import android.content.ClipboardManager;
+import android.content.Context;
+import android.content.Intent;
+import android.content.res.Configuration;
+import android.graphics.Color;
+import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.RippleDrawable;
+import android.content.res.ColorStateList;
+import android.os.SystemClock;
+import android.net.VpnService;
+import android.os.Build;
+import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.text.InputType;
+import android.text.format.Formatter;
+import android.view.Gravity;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.*;
+import java.util.Locale;
+import java.util.Objects;
+import java.util.List;
+import java.util.Set;
+import java.util.HashSet;
+
+/** Native, accessible UI. Network state always comes from NodeController. */
+public class MainActivity extends Activity {
+    private static final int NAVY = 0xffedf7ff, GREEN = 0xff10edee, BG = 0xff031322, MUTED = 0xffa5bbcf, SURFACE=0xff092135;
+    private final Handler handler = new Handler(Looper.getMainLooper());
+    private final Runnable ticker = new Runnable() { public void run() { refresh(); handler.postDelayed(this, 1000); } };
+    private NodeController controller;
+    private LinearLayout content, nav, peers;
+    private TextView status, address, shareValue, receivedValue, rateValue, clientsValue, limitValue, detail;
+    private Button sharingButton, vpnButton, measureButton;
+    private String pendingPeer, peerSignature = "";
+    private int selectedTab,selectedRegion;
+    private TextView discoveryDetail,bootstrapAddress;
+    private Switch publicSwitch;
+    private TextView publicDetail;
+    private TextView pairingDetail;
+    private Button pairingCreate,pairingImport,pairingShare;
+    private NetworkMapView networkMap;
+    private TextView searchTitle,searchHint,mapCount;
+    private ProgressBar searchProgress;
+    private Button searchAction,allRegions;
+    private long searchStarted,retryCycle=-1;
+    private String observedDiscovery="";
+    private LinearLayout regionChips;
+    private boolean advanced;
+    private LinearLayout header,searchPanel;
+    private HorizontalScrollView filterStrip;
+    private PeerArtwork searchArtwork;
+    private ScrollView pageScroll;
+
+    @Override protected void attachBaseContext(Context base) {
+        String language = base.getSharedPreferences("ui", MODE_PRIVATE).getString("language", "");
+        if (language != null && !language.isEmpty()) {
+            Configuration config = new Configuration(base.getResources().getConfiguration());
+            config.setLocale(Locale.forLanguageTag(language));
+            base = base.createConfigurationContext(config);
+        }
+        super.attachBaseContext(base);
+    }
+    @Override public void onCreate(Bundle state) {
+        super.onCreate(state);
+        controller = NodeController.get(this);
+        if (state != null) { selectedTab = state.getInt("tab"); selectedRegion=state.getInt("region"); pendingPeer = state.getString("pendingPeer"); }
+        getWindow().setStatusBarColor(BG); getWindow().setNavigationBarColor(BG);
+        getWindow().getDecorView().setSystemUiVisibility(0);
+        LinearLayout root = column(); root.setBackgroundColor(BG); root.setFitsSystemWindows(true);
+        header = new LinearLayout(this); header.setGravity(Gravity.CENTER_VERTICAL); header.setPadding(dp(18), dp(8), dp(18), dp(8));
+        root.addView(header);
+        ScrollView scroll = new ScrollView(this);pageScroll=scroll; scroll.setFillViewport(true);scroll.setVerticalScrollBarEnabled(false); content = column(); content.setPadding(dp(12),dp(2),dp(12),dp(12)); scroll.addView(content);
+        root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
+        nav = new LinearLayout(this); nav.setGravity(Gravity.CENTER); nav.setBackground(raised(false,22)); nav.setPadding(dp(4),dp(7),dp(4),dp(5)); root.addView(nav);
+        setContentView(root); showTab(selectedTab);
+    }
+    @Override protected void onSaveInstanceState(Bundle out) { super.onSaveInstanceState(out); out.putInt("tab",selectedTab);out.putInt("region",selectedRegion); out.putString("pendingPeer",pendingPeer); }
+    @Override protected void onResume() { super.onResume(); handler.removeCallbacks(ticker); ticker.run(); }
+    @Override protected void onPause() { handler.removeCallbacks(ticker); super.onPause(); }
+    private String s(String key,Object... args) { int id=stringResource(key); return args.length==0?getString(id):getString(id,args); }
+    private static int stringResource(String key) {
+        return switch (key) {
+            case "app_name" -> R.string.app_name;
+            case "home" -> R.string.home;
+            case "nodes" -> R.string.nodes;
+            case "statistics" -> R.string.statistics;
+            case "settings" -> R.string.settings;
+            case "home_intro" -> R.string.home_intro;
+            case "connection" -> R.string.connection;
+            case "choose_node" -> R.string.choose_node;
+            case "node" -> R.string.node;
+            case "your_node" -> R.string.your_node;
+            case "sharing_explanation" -> R.string.sharing_explanation;
+            case "start_sharing" -> R.string.start_sharing;
+            case "stop_sharing" -> R.string.stop_sharing;
+            case "fair_title" -> R.string.fair_title;
+            case "fair_explanation" -> R.string.fair_explanation;
+            case "clients" -> R.string.clients;
+            case "share_limit" -> R.string.share_limit;
+            case "address" -> R.string.address;
+            case "unavailable" -> R.string.unavailable;
+            case "unknown_country" -> R.string.unknown_country;
+            case "disconnect" -> R.string.disconnect;
+            case "nodes_intro" -> R.string.nodes_intro;
+            case "add_invitation" -> R.string.add_invitation;
+            case "refresh_nodes" -> R.string.refresh_nodes;
+            case "copy_invitation" -> R.string.copy_invitation;
+            case "share_invitation" -> R.string.share_invitation;
+            case "stats_intro" -> R.string.stats_intro;
+            case "shared_traffic" -> R.string.shared_traffic;
+            case "received_traffic" -> R.string.received_traffic;
+            case "upload_speed" -> R.string.upload_speed;
+            case "measure_explanation" -> R.string.measure_explanation;
+            case "measure" -> R.string.measure;
+            case "language" -> R.string.language;
+            case "choose_language" -> R.string.choose_language;
+            case "how_it_works" -> R.string.how_it_works;
+            case "network_notice" -> R.string.network_notice;
+            case "privacy_notice" -> R.string.privacy_notice;
+            case "country_notice" -> R.string.country_notice;
+            case "per_second" -> R.string.per_second;
+            case "no_nodes" -> R.string.no_nodes;
+            case "peer_details" -> R.string.peer_details;
+            case "latency" -> R.string.latency;
+            case "reachable" -> R.string.reachable;
+            case "unreachable" -> R.string.unreachable;
+            case "connect" -> R.string.connect;
+            case "invitation_hint" -> R.string.invitation_hint;
+            case "invitation_notice" -> R.string.invitation_notice;
+            case "cancel" -> R.string.cancel;
+            case "add" -> R.string.add;
+            case "invalid_invitation" -> R.string.invalid_invitation;
+            case "invitation_unavailable" -> R.string.invitation_unavailable;
+            case "ok" -> R.string.ok;
+            case "invitation" -> R.string.invitation;
+            case "copied" -> R.string.copied;
+            case "system_language" -> R.string.system_language;
+            case "status_off" -> R.string.status_off;
+            case "status_starting" -> R.string.status_starting;
+            case "status_sharing" -> R.string.status_sharing;
+            case "status_connecting" -> R.string.status_connecting;
+            case "status_connected" -> R.string.status_connected;
+            case "status_measuring" -> R.string.status_measuring;
+            case "status_error" -> R.string.status_error;
+            case "status_no_peers" -> R.string.status_no_peers;
+            case "status_unreachable" -> R.string.status_unreachable;
+            case "status_capacity" -> R.string.status_capacity;
+            case "status_need_sharing" -> R.string.status_need_sharing;
+            case "status_need_measurement" -> R.string.status_need_measurement;
+            case "endpoint_title" -> R.string.endpoint_title;
+            case "endpoint_hint" -> R.string.endpoint_hint;
+            case "endpoint_help" -> R.string.endpoint_help;
+            case "save" -> R.string.save;
+            case "invalid_host" -> R.string.invalid_host;
+            case "saved" -> R.string.saved;
+            case "notification_channel" -> R.string.notification_channel;
+            case "notification_title" -> R.string.notification_title;
+            case "notification_text" -> R.string.notification_text;
+            case "notification_stop" -> R.string.notification_stop;
+            case "vpn_apps" -> R.string.vpn_apps;
+            case "vpn_apps_help" -> R.string.vpn_apps_help;
+            case "apps_selected" -> R.string.apps_selected;
+            case "choose_apps" -> R.string.choose_apps;
+            case "apps_required" -> R.string.apps_required;
+            case "apps_none" -> R.string.apps_none;
+            case "apps_saved" -> R.string.apps_saved;
+            case "public_network" -> R.string.public_network;
+            case "public_network_help" -> R.string.public_network_help;
+            case "add_first_participant" -> R.string.add_first_participant;
+            case "share_public_contact" -> R.string.share_public_contact;
+            case "public_contact_unavailable" -> R.string.public_contact_unavailable;
+            case "public_network_off" -> R.string.public_network_off;
+            case "public_network_pending" -> R.string.public_network_pending;
+            case "network_bootstrap_required" -> R.string.network_bootstrap_required;
+            case "network_relay_connected" -> R.string.network_relay_connected;
+            case "network_direct_unverified" -> R.string.network_direct_unverified;
+            case "status_select_apps" -> R.string.apps_required;
+            default -> R.string.status_error;
+        };
+    }
+    private int dp(float value) { return Math.round(value*getResources().getDisplayMetrics().density); }
+    private LinearLayout column() { LinearLayout l=new LinearLayout(this); l.setOrientation(LinearLayout.VERTICAL); return l; }
+    private TextView label(String value,int size,int color,boolean bold) { TextView t=new TextView(this); t.setText(value); t.setTextSize(size); t.setTextColor(color); if(bold)t.setTypeface(Typeface.DEFAULT,Typeface.BOLD); t.setPadding(0,dp(4),0,dp(4)); return t; }
+    private GradientDrawable background(int color,int radius) { GradientDrawable d=new GradientDrawable(); d.setColor(color); d.setCornerRadius(dp(radius)); return d; }
+    private GradientDrawable raised(boolean primary,int radius) {
+        GradientDrawable d=new GradientDrawable(GradientDrawable.Orientation.TL_BR,primary?new int[]{0xff3efff4,0xff00cde4}:new int[]{0xff18354b,0xff051b2d});
+        d.setCornerRadius(dp(radius));d.setStroke(dp(0.7f),primary?0xff8bfff6:0xff43627a);return d;
+    }
+    private LinearLayout card() { LinearLayout c=column(); c.setPadding(dp(12),dp(10),dp(12),dp(10)); c.setBackground(raised(false,20));c.setElevation(dp(5)); LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,-2); p.bottomMargin=dp(10);p.topMargin=dp(2); content.addView(c,p); return c; }
+    private Button button(LinearLayout parent,String text,boolean primary,Runnable action) { Button b=new Button(this); b.setText(text); b.setTextSize(14);b.setTypeface(Typeface.DEFAULT,Typeface.BOLD); b.setAllCaps(false); b.setTextColor(new ColorStateList(new int[][]{new int[]{-android.R.attr.state_enabled},new int[]{}},new int[]{0xff8296a9,primary?BG:NAVY})); b.setBackground(new RippleDrawable(ColorStateList.valueOf(0x407fffff),raised(primary,15),null)); b.setElevation(dp(primary?6:3));b.setPadding(dp(10),dp(8),dp(10),dp(8));b.setMinWidth(0);b.setMinimumWidth(0); b.setMinHeight(dp(50)); LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,-2); p.topMargin=dp(8); parent.addView(b,p); b.setOnClickListener(v->action.run()); return b; }
+    private View iconButton(String kind,String description,Runnable action) {
+        FrameLayout box=new FrameLayout(this);box.setContentDescription(description);box.setBackground(new RippleDrawable(ColorStateList.valueOf(0x307fffff),raised(false,14),null));
+        PeerArtwork icon=new PeerArtwork(this,kind,NAVY);FrameLayout.LayoutParams ip=new FrameLayout.LayoutParams(dp(24),dp(24),Gravity.CENTER);box.addView(icon,ip);box.setOnClickListener(v->action.run());box.setFocusable(true);box.setMinimumHeight(dp(48));box.setMinimumWidth(dp(48));return box;
+    }
+    private void buildHeader(int tab) {
+        header.removeAllViews();
+        if(tab==0){
+            TextView brand=label("PeerNet",32,NAVY,true);android.text.SpannableString word=new android.text.SpannableString("PeerNet");word.setSpan(new android.text.style.ForegroundColorSpan(GREEN),4,7,0);brand.setText(word);header.addView(brand,new LinearLayout.LayoutParams(0,-2,1));
+            header.addView(iconButton("settings",s("settings"),()->showTab(3)),new LinearLayout.LayoutParams(dp(48),dp(48)));
+        }else{
+            View back=iconButton("back",s("home"),()->showTab(0));back.setBackground(null);header.addView(back,new LinearLayout.LayoutParams(dp(48),dp(48)));
+            header.addView(label(tab==1?getString(R.string.ui_map):s(tab==2?"statistics":"settings"),26,NAVY,true),new LinearLayout.LayoutParams(0,-2,1));
+        }
+    }
+    private void showTab(int tab) {
+        selectedTab=tab; content.removeAllViews(); nav.removeAllViews(); peerSignature="";
+        status=address=shareValue=receivedValue=rateValue=clientsValue=limitValue=detail=null; publicSwitch=null; publicDetail=null; peers=null; sharingButton=vpnButton=measureButton=null;
+        pairingDetail=null;pairingCreate=pairingImport=pairingShare=null;discoveryDetail=bootstrapAddress=null;
+        networkMap=null;searchTitle=searchHint=mapCount=null;searchProgress=null;searchAction=allRegions=null;regionChips=null;
+        String[] tabs={"home","nodes","statistics","settings"}; String[] symbols={"⌂","◎","▥","⚙"};
+        for(int i=0;i<tabs.length;i++) { final int index=i;String title=i==1?getString(R.string.ui_map_tab):s(tabs[i]); TextView item=label(symbols[i]+"\n"+title,12,i==tab?GREEN:MUTED,i==tab); item.setGravity(Gravity.CENTER); item.setMinHeight(dp(56)); item.setContentDescription(title); item.setSelected(i==tab);if(i==tab)item.setBackground(background(SURFACE,16)); nav.addView(item,new LinearLayout.LayoutParams(0,-2,1)); item.setOnClickListener(v->showTab(index)); }
+        if(tab!=0)content.addView(label(tab==1?getString(R.string.ui_map):s(tabs[tab]),27,NAVY,true));
+        if(tab==0) home(); else if(tab==1) nodes(); else if(tab==2) statistics(); else settings();
+        refresh();
+    }
+    private void home() {
+        LinearLayout c=card(); c.addView(label(s("connection"),13,MUTED,false)); status=label("",24,NAVY,true); c.addView(status); address=label("",14,MUTED,false); c.addView(address);
+        vpnButton=button(c,s("choose_node"),true,()->{if(controller.snapshot().vpnConnected)controller.disconnect();else showTab(1);});
+        LinearLayout sharing=card(); sharing.addView(label(s("your_node"),20,NAVY,true));
+        clientsValue=label("",17,NAVY,true); sharing.addView(clientsValue); limitValue=label("",15,MUTED,false); sharing.addView(limitValue);
+        sharingButton=button(sharing,s("start_sharing"),true,()->{NodeController.Snapshot x=controller.snapshot(); if(x.sharing)controller.stopSharing();else { requestNotifications(); controller.startSharing(); } refresh();});
+        LinearLayout map=card();map.addView(label(getString(R.string.ui_map),20,NAVY,true));mapCount=label("",14,MUTED,false);map.addView(mapCount);
+        networkMap=new NetworkMapView(this);map.addView(networkMap,new LinearLayout.LayoutParams(-1,dp(175)));networkMap.setOnRegionSelectedListener(region->{selectedRegion=region;showTab(1);});
+        button(map,getString(R.string.ui_open_map),false,()->showTab(1));
+        LinearLayout apps=card();apps.addView(label(getString(R.string.ui_apps),20,NAVY,true));
+        LinearLayout icons=new LinearLayout(this);for(String pkg:AppSelection.validPackages(this)){if(icons.getChildCount()>=5)break;try{ImageView icon=new ImageView(this);icon.setImageDrawable(getPackageManager().getApplicationIcon(pkg));icon.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);LinearLayout.LayoutParams ip=new LinearLayout.LayoutParams(dp(36),dp(36));ip.setMarginEnd(dp(10));icons.addView(icon,ip);}catch(android.content.pm.PackageManager.NameNotFoundException ignored){}}
+        apps.addView(icons);button(apps,getString(R.string.ui_choose_apps),false,this::chooseApps);
+        detail=label("",14,0xffff8e9a,false); content.addView(detail);
+    }
+    private void nodes() {
+        if(searchStarted==0)searchStarted=SystemClock.elapsedRealtime();
+        LinearLayout map=card();mapCount=label("",17,NAVY,true);map.addView(mapCount);
+        networkMap=new NetworkMapView(this);map.addView(networkMap,new LinearLayout.LayoutParams(-1,dp(205)));
+        networkMap.setOnRegionSelectedListener(region->{selectedRegion=region;showTab(1);});
+        map.addView(label(getString(R.string.ui_map_hint),12,MUTED,false));
+        HorizontalScrollView filter=new HorizontalScrollView(this);filter.setHorizontalScrollBarEnabled(false);regionChips=new LinearLayout(this);filter.addView(regionChips);content.addView(filter);
+        int[] names={R.string.discovery_all,R.string.discovery_africa,R.string.discovery_americas,R.string.discovery_asia,R.string.discovery_europe,R.string.discovery_oceania,R.string.discovery_unknown};
+        selectedRegion=Math.max(0,Math.min(selectedRegion,names.length-1));
+        for(int i=0;i<names.length;i++){final int region=i;Button chip=button(regionChips,getString(names[i]),i==selectedRegion,()->{selectedRegion=region;showTab(1);});LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(-2,-2);cp.setMarginEnd(dp(8));cp.bottomMargin=dp(14);chip.setLayoutParams(cp);chip.setSelected(i==selectedRegion);}
+        LinearLayout search=card();LinearLayout searchRow=new LinearLayout(this);searchRow.setGravity(Gravity.CENTER_VERTICAL);
+        searchProgress=new ProgressBar(this);searchProgress.setIndeterminateTintList(ColorStateList.valueOf(GREEN));LinearLayout.LayoutParams pp=new LinearLayout.LayoutParams(dp(26),dp(26));pp.setMarginEnd(dp(12));searchRow.addView(searchProgress,pp);
+        searchTitle=label("",18,NAVY,true);searchRow.addView(searchTitle,new LinearLayout.LayoutParams(0,-2,1));search.addView(searchRow);
+        searchHint=label("",14,MUTED,false);search.addView(searchHint);
+        searchAction=button(search,getString(R.string.ui_retry),false,this::searchAction);
+        allRegions=button(search,getString(R.string.ui_all_regions),false,()->{selectedRegion=PeerRegions.ALL;showTab(1);});
+        detail=label("",14,0xffff8e9a,false);content.addView(detail);
+        peers=column();content.addView(peers);
+    }
+    private void manualPairing() {
+        content.addView(label(getString(R.string.discovery_manual),19,NAVY,true));
+        LinearLayout pairingCard=card();
+        pairingCard.addView(label(getString(R.string.nat_title),19,NAVY,true));
+        pairingCard.addView(label(getString(R.string.nat_help),15,MUTED,false));
+        pairingDetail=label("",15,NAVY,false);pairingCard.addView(pairingDetail);
+        pairingCreate=button(pairingCard,getString(R.string.nat_create),true,()->{controller.createPairing();refresh();});
+        pairingImport=button(pairingCard,getString(R.string.nat_import),false,this::importPairing);
+        pairingShare=button(pairingCard,getString(R.string.nat_share),false,this::sharePairing);
+        button(pairingCard,s("cancel"),false,()->{controller.cancelPairing();refresh();});
+        LinearLayout c=card();button(c,s("add_invitation"),false,this::addInvitation);
+        button(c,s("copy_invitation"),false,()->ownInvitation(false));button(c,s("share_invitation"),false,()->ownInvitation(true));
+    }
+    private void statistics() {
+        LinearLayout c=card(); c.addView(label(s("shared_traffic"),14,MUTED,false));shareValue=label("",30,NAVY,true);c.addView(shareValue);
+        c=card();c.addView(label(s("received_traffic"),14,MUTED,false));receivedValue=label("",30,NAVY,true);c.addView(receivedValue);
+        c=card();c.addView(label(s("upload_speed"),14,MUTED,false));rateValue=label("",26,NAVY,true);c.addView(rateValue);
+        measureButton=button(c,s("measure"),true,()->{controller.measure();refresh();});
+        detail=label("",14,0xffff8e9a,false);content.addView(detail);
+    }
+    private void settings() {
+        LinearLayout apps = card();
+        apps.addView(label(getString(R.string.ui_apps),18,NAVY,true));
+        apps.addView(label(s("apps_selected",AppSelection.validPackages(this).size()),15,NAVY,true));
+        button(apps,getString(R.string.ui_choose_apps),false,this::chooseApps);
+        LinearLayout language=card();button(language,s("choose_language"),false,this::chooseLanguage);
+        button(language,getString(R.string.ui_more),false,()->{advanced=!advanced;showTab(3);});
+        if(!advanced)return;
+        LinearLayout bootstrap=card();bootstrap.addView(label(getString(R.string.bootstrap_title),19,NAVY,true));
+        bootstrap.addView(label(getString(R.string.bootstrap_help),15,MUTED,false));
+        bootstrapAddress=label("",14,MUTED,false);bootstrapAddress.setTextIsSelectable(true);bootstrap.addView(bootstrapAddress);
+        discoveryDetail=label("",15,NAVY,false);bootstrap.addView(discoveryDetail);
+        button(bootstrap,getString(R.string.bootstrap_edit),false,this::editBootstrap);
+        LinearLayout networkCard = card();
+        publicSwitch = new Switch(this);
+        publicSwitch.setText(s("public_network"));
+        publicSwitch.setTextSize(18);
+        publicSwitch.setTextColor(NAVY);
+        publicSwitch.setMinHeight(dp(52));
+        publicSwitch.setChecked(controller.snapshot().publicNetwork);
+        networkCard.addView(publicSwitch,new LinearLayout.LayoutParams(-1,-2));
+        publicSwitch.setOnClickListener(view -> {controller.setPublicNetwork(publicSwitch.isChecked());refresh();});
+        networkCard.addView(label(s("public_network_help"),15,MUTED,false));
+        publicDetail=label("",15,NAVY,false);networkCard.addView(publicDetail);
+        button(networkCard,s("add_first_participant"),false,this::addInvitation);
+        button(networkCard,s("share_public_contact"),false,this::sharePublicContact);
+        LinearLayout c=card();c.addView(label(s("language"),18,NAVY,true));button(c,s("choose_language"),false,this::chooseLanguage);
+        c=card();c.addView(label(s("endpoint_title"),18,NAVY,true));c.addView(label(s("endpoint_help"),15,MUTED,false));button(c,s("endpoint_title"),false,this::editAdvertisedHost);
+        c=card();c.addView(label(s("how_it_works"),19,NAVY,true));c.addView(label(s("network_notice"),15,MUTED,false));c.addView(label(s("privacy_notice"),15,MUTED,false));c.addView(label(s("country_notice"),15,MUTED,false));c.addView(label(s("measure_explanation"),15,MUTED,false));
+        manualPairing();
+    }
+    private void refresh() {
+        if(controller==null)return; NodeController.Snapshot x=controller.snapshot();
+        if(status!=null)status.setText(x.vpnConnected?getString(R.string.ui_connected):"OFF".equals(x.status)?getString(R.string.ui_disconnected):localStatus(x.status));
+        updateDiscovery(x);
+        if(discoveryDetail!=null){String value=getString(R.string.discovery_state,getString(discoveryStateResource(x.discoveryState)));if(x.bootstrapHosting)value+="\n"+getString(R.string.discovery_hosting,x.bootstrapPort);discoveryDetail.setText(value);}
+        if(bootstrapAddress!=null)bootstrapAddress.setText(empty(x.discoveryURL)?getString(R.string.discovery_not_configured):x.discoveryURL);
+        if(publicSwitch!=null)publicSwitch.setChecked(x.publicNetwork);
+        if(publicDetail!=null)publicDetail.setText(networkDetail(x.publicNetwork,x.networkDetail));
+        if(pairingDetail!=null)pairingDetail.setText(getString(!x.sharing?R.string.nat_start_sharing:switch(x.pairingState){
+            case "GATHERING","CONNECTING" -> R.string.nat_connecting;
+            case "OFFER_READY" -> R.string.nat_offer_ready;
+            case "ANSWER_READY" -> R.string.nat_answer_ready;
+            case "CONNECTED" -> R.string.nat_connected;
+            case "INVALID" -> R.string.nat_invalid;
+            case "EXPIRED" -> R.string.nat_expired;
+            case "UNAVAILABLE","CAPACITY" -> R.string.nat_unavailable;
+            default -> R.string.nat_idle;
+        }));
+        if(pairingCreate!=null)pairingCreate.setEnabled(x.sharing&&!x.busy);
+        if(pairingImport!=null)pairingImport.setEnabled(x.sharing&&!x.busy);
+        if(pairingShare!=null)pairingShare.setEnabled(!x.pairingCode.isEmpty());
+        if(address!=null){address.setText(x.vpnConnected||empty(x.country)?"":country(x.country));address.setVisibility(address.length()==0?View.GONE:View.VISIBLE);}
+        if(clientsValue!=null)clientsValue.setText(s("clients",x.clients));
+        if(limitValue!=null){limitValue.setText(x.shareLimitBps>0?getString(R.string.ui_limit,speed(x.shareLimitBps)):"");limitValue.setVisibility(x.shareLimitBps>0?View.VISIBLE:View.GONE);}
+        if(sharingButton!=null){sharingButton.setText(getString(x.sharing?R.string.ui_stop_share:R.string.ui_share));sharingButton.setEnabled(x.sharing||!x.busy);}
+        if(vpnButton!=null){vpnButton.setText(s(x.vpnConnected?"disconnect":"choose_node"));vpnButton.setEnabled(!x.busy);}
+        if(shareValue!=null)shareValue.setText(Formatter.formatFileSize(this,x.sharedBytes));
+        if(receivedValue!=null)receivedValue.setText(Formatter.formatFileSize(this,x.receivedBytes));
+        if(rateValue!=null)rateValue.setText(speed(x.uploadBps));
+        if(measureButton!=null)measureButton.setEnabled(!x.busy);
+        if(detail!=null){boolean error="ERROR".equals(x.status)||"UNREACHABLE".equals(x.status)||"CAPACITY".equals(x.status)||"NEED_SHARING".equals(x.status)||"NEED_MEASUREMENT".equals(x.status)||"SELECT_APPS".equals(x.status); detail.setText(error?localStatus(x.status):"");detail.setVisibility(error?View.VISIBLE:View.GONE);}
+        if(peers!=null){StringBuilder signature=new StringBuilder().append(selectedRegion).append(x.busy).append(x.sharing).append(x.vpnConnected); if(x.peers!=null)for(NodeController.Peer p:x.peers)signature.append(p.id).append(p.name).append(p.country).append(p.reachable).append(p.clients).append(p.latencyMs).append(p.upload).append(p.autoDiscovered).append(p.announced).append(p.freeSlots); if(!Objects.equals(peerSignature,signature.toString())){peerSignature=signature.toString();renderPeers(x);}}
+    }
+    private static boolean visiblePeer(NodeController.Peer p){return p.reachable||(p.autoDiscovered&&p.announced);}
+    private void updateDiscovery(NodeController.Snapshot x) {
+        if(networkMap==null&&searchTitle==null)return;
+        long now=SystemClock.elapsedRealtime();
+        String phase=x.discoveryState+":"+x.status+":"+x.sharing;
+        if(!phase.equals(observedDiscovery)){observedDiscovery=phase;if(retryCycle<0)searchStarted=now;}
+        if(retryCycle>=0&&x.completedDiscoveryRefresh>=retryCycle)retryCycle=-1;
+        int[] counts=new int[7];for(NodeController.Peer p:x.peers)if(visiblePeer(p)){counts[0]++;counts[PeerRegions.group(p.country)]++;}
+        if(networkMap!=null)networkMap.setData(counts,selectedTab==1?selectedRegion:0);
+        if(mapCount!=null)mapCount.setText(getString(R.string.ui_found,counts[0]));
+        if(searchTitle==null)return;
+        int count=counts[selectedRegion];
+        boolean preparing=x.busy&&("STARTING".equals(x.status)||"MEASURING".equals(x.status));
+        SearchPresentation.State state=SearchPresentation.resolve(x.sharing,preparing,x.discoveryState,count,now-searchStarted,retryCycle>=0);
+        int title=switch(state){case SHARE_REQUIRED->R.string.ui_share_to_search;case PREPARING->R.string.ui_preparing;case SEARCHING->R.string.ui_searching;case SLOW->R.string.ui_search_slow;case FOUND->R.string.ui_found;case EMPTY->selectedRegion==0?R.string.ui_empty:R.string.ui_region_empty;case OFFLINE->R.string.ui_catalog_offline;case SETUP->R.string.ui_setup;};
+        searchTitle.setText(state==SearchPresentation.State.FOUND?getString(title,count):getString(title));
+        searchProgress.setVisibility(state==SearchPresentation.State.SEARCHING||state==SearchPresentation.State.PREPARING?View.VISIBLE:View.GONE);
+        boolean hint=state==SearchPresentation.State.EMPTY||state==SearchPresentation.State.OFFLINE||state==SearchPresentation.State.SLOW;
+        searchHint.setText(getString(state==SearchPresentation.State.EMPTY?R.string.ui_empty_hint:R.string.ui_retry_hint));searchHint.setVisibility(hint?View.VISIBLE:View.GONE);
+        searchAction.setText(getString(state==SearchPresentation.State.SHARE_REQUIRED?R.string.ui_share:state==SearchPresentation.State.SETUP?R.string.ui_advanced:R.string.ui_retry));
+        searchAction.setEnabled(!x.busy&&state!=SearchPresentation.State.SEARCHING&&state!=SearchPresentation.State.PREPARING);
+        allRegions.setVisibility(selectedRegion!=0?View.VISIBLE:View.GONE);
+    }
+    private void searchAction() {
+        NodeController.Snapshot x=controller.snapshot();
+        searchStarted=SystemClock.elapsedRealtime();
+        if(!x.sharing){requestNotifications();controller.startSharing();}
+        else if("NOT_CONFIGURED".equals(x.discoveryState)){advanced=true;showTab(3);return;}
+        else {retryCycle=controller.refreshDiscovery();controller.refreshPeers();}
+        refresh();
+    }
+    private String localStatus(String code) { return s("status_"+(code==null?"off":code.toLowerCase(Locale.ROOT))); }
+    private String country(String code){if(empty(code))return s("unknown_country");return new Locale("",code).getDisplayCountry(getResources().getConfiguration().getLocales().get(0));}
+    private String speed(long bytes){return getString(R.string.speed_mbps,Math.max(0,bytes)*8.0/1_000_000.0);}
+    private boolean empty(String text){return text==null||text.isEmpty();}
+    private static int discoveryStateResource(String state){
+        if(state==null)return R.string.discovery_not_configured;
+        return switch(state){case "STARTING"->R.string.discovery_starting;case "ONLINE"->R.string.discovery_online;case "OFFLINE"->R.string.discovery_offline;case "PAIRING"->R.string.discovery_pairing;default->R.string.discovery_not_configured;};
+    }
+    private void editBootstrap(){
+        EditText input=new EditText(this);input.setSingleLine(true);input.setHint(R.string.bootstrap_hint);
+        input.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_URI);input.setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_NO);
+        input.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(2048)});input.setText(controller.snapshot().discoveryURL);
+        AlertDialog dialog=new AlertDialog.Builder(this).setTitle(R.string.bootstrap_title).setMessage(R.string.bootstrap_help).setView(input).setNegativeButton(s("cancel"),null).setPositiveButton(s("save"),null).create();
+        dialog.setOnShowListener(view->dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(button->{
+            try{controller.setBootstrapUrl(input.getText().toString().trim());dialog.dismiss();Toast.makeText(this,s("saved"),Toast.LENGTH_SHORT).show();refresh();}
+            catch(IllegalArgumentException invalid){input.setError(getString(R.string.bootstrap_invalid));}
+        }));dialog.show();
+    }
+    private void renderPeers(NodeController.Snapshot x){
+        peers.removeAllViews();int count=0;
+        if(x.peers!=null)for(NodeController.Peer p:x.peers){
+            if(!visiblePeer(p))continue;
+            if(selectedRegion!=PeerRegions.ALL&&PeerRegions.group(p.country)!=selectedRegion)continue;
+            count++;
+            LinearLayout c=column();c.setBackground(raised(false,22));c.setElevation(dp(3));c.setPadding(dp(18),dp(14),dp(18),dp(18));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.bottomMargin=dp(14);peers.addView(c,lp);
+            c.addView(label(country(p.country),20,NAVY,true));
+            boolean announced=p.autoDiscovered&&p.announced;
+            int slots=p.reachable?Math.max(0,3-p.clients):Math.max(0,Math.min(3,p.freeSlots));
+            c.addView(label(getString(R.string.ui_slots,slots),14,MUTED,false));
+            if(p.upload>0)c.addView(label(speed(p.upload),15,NAVY,true));
+            String state=getString(p.reachable?R.string.ui_verified:R.string.ui_announced);
+            c.addView(label(state,14,p.reachable?GREEN:MUTED,false));
+            boolean canConnect=SearchPresentation.canConnect(p.reachable,p.paired,announced,slots);
+            Button connect=button(c,getString(canConnect?R.string.ui_connect:R.string.ui_full),true,()->connect(p.id));connect.setEnabled(canConnect&&x.sharing&&!x.busy&&!x.vpnConnected);
+        }
+    }
+    private void connect(String id){if(!hasSelectedApps())return;Intent prepare=VpnService.prepare(this);pendingPeer=id;if(prepare!=null)startActivityForResult(prepare,71);else{controller.connect(id);pendingPeer=null;showTab(0);}}
+    @Override protected void onActivityResult(int request,int result,Intent data){super.onActivityResult(request,result,data);if(request==71){String id=pendingPeer;pendingPeer=null;if(result==RESULT_OK&&id!=null&&hasSelectedApps()){controller.connect(id);showTab(0);}}}
+    private void requestNotifications(){if(Build.VERSION.SDK_INT>=33&&checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)!=android.content.pm.PackageManager.PERMISSION_GRANTED)requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS},72);}
+    private void addInvitation(){EditText input=new EditText(this);input.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_FLAG_MULTI_LINE|InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);input.setHint(s("invitation_hint"));input.setMinLines(3);input.setPadding(dp(20),dp(12),dp(20),dp(12));AlertDialog dialog=new AlertDialog.Builder(this).setTitle(s("add_invitation")).setMessage(s("invitation_notice")).setView(input).setNegativeButton(s("cancel"),null).setPositiveButton(s("add"),null).create();dialog.setOnShowListener(v->dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(w->{try{controller.addInvitation(input.getText().toString().trim());dialog.dismiss();refresh();}catch(IllegalArgumentException e){input.setError(s("invalid_invitation"));}}));dialog.show();}
+    private void ownInvitation(boolean share){String value=controller.snapshot().invitation;if(empty(value)){new AlertDialog.Builder(this).setMessage(s("invitation_unavailable")).setPositiveButton(s("ok"),null).show();return;}if(share){Intent intent=new Intent(Intent.ACTION_SEND);intent.setType("text/plain");intent.putExtra(Intent.EXTRA_TEXT,value);startActivity(Intent.createChooser(intent,s("share_invitation")));}else{ClipboardManager clipboard=(ClipboardManager)getSystemService(CLIPBOARD_SERVICE);clipboard.setPrimaryClip(ClipData.newPlainText(s("invitation"),value));Toast.makeText(this,s("copied"),Toast.LENGTH_SHORT).show();}}
+    private void importPairing(){
+        EditText input=new EditText(this);input.setMinLines(3);
+        input.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_FLAG_MULTI_LINE|InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
+        input.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(100_000)});
+        input.setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_NO);
+        new AlertDialog.Builder(this).setTitle(R.string.nat_import).setMessage(R.string.nat_secret_notice).setView(input)
+                .setNegativeButton(s("cancel"),null).setPositiveButton(s("add"),(dialog,which)->{
+                    controller.acceptPairing(input.getText().toString().trim());input.setText("");refresh();
+                }).show();
+    }
+    private void sharePairing(){
+        String value=controller.snapshot().pairingCode;if(value.isEmpty())return;
+        new AlertDialog.Builder(this).setTitle(R.string.nat_share).setMessage(R.string.nat_secret_notice)
+                .setNegativeButton(s("cancel"),null).setNeutralButton(R.string.nat_copy,(dialog,which)->{
+                    ClipData clip=ClipData.newPlainText(getString(R.string.nat_title),value);
+                    android.os.PersistableBundle extras=new android.os.PersistableBundle();extras.putBoolean("android.content.extra.IS_SENSITIVE",true);
+                    clip.getDescription().setExtras(extras);
+                    ((ClipboardManager)getSystemService(CLIPBOARD_SERVICE)).setPrimaryClip(clip);
+                    Toast.makeText(this,s("copied"),Toast.LENGTH_SHORT).show();
+                }).setPositiveButton(R.string.nat_share,(dialog,which)->{
+                    Intent send=new Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT,value);
+                    startActivity(Intent.createChooser(send,getString(R.string.nat_share)));
+                }).show();
+    }
+    private String networkDetail(boolean enabled,String code) {
+        if(!enabled)return s("public_network_off");
+        if(code==null)return s("public_network_pending");
+        return s(switch(code){
+            case "BOOTSTRAP_REQUIRED" -> "network_bootstrap_required";
+            case "DISCOVERING" -> "public_network_pending";
+            case "RELAY_CONNECTED" -> "network_relay_connected";
+            case "DIRECT_UNVERIFIED" -> "network_direct_unverified";
+            case "PUBLIC_OFF" -> "public_network_off";
+            default -> "public_network_pending";
+        });
+    }
+    private void sharePublicContact() {
+        NodeController.Snapshot state=controller.snapshot();
+        if(!state.publicNetwork||empty(state.publicContact)) {
+            new AlertDialog.Builder(this).setMessage(s("public_contact_unavailable"))
+                    .setPositiveButton(s("ok"),null).show();
+            return;
+        }
+        Intent share=new Intent(Intent.ACTION_SEND).setType("text/plain");
+        share.putExtra(Intent.EXTRA_TEXT,state.publicContact);
+        startActivity(Intent.createChooser(share,s("share_public_contact")));
+    }
+    private boolean hasSelectedApps() {
+        if (!AppSelection.validPackages(this).isEmpty()) return true;
+        new AlertDialog.Builder(this).setTitle(s("vpn_apps")).setMessage(s("apps_required"))
+                .setNegativeButton(s("cancel"), null)
+                .setPositiveButton(s("choose_apps"), (dialog, which) -> { showTab(3); chooseApps(); }).show();
+        return false;
+    }
+
+    private void chooseApps() {
+        List<AppSelection.App> candidates = AppSelection.candidateApps(this);
+        if (candidates.isEmpty()) {
+            new AlertDialog.Builder(this).setTitle(s("vpn_apps")).setMessage(s("apps_none"))
+                    .setPositiveButton(s("ok"),null).show();
+            return;
+        }
+        Set<String> selected = new HashSet<>(AppSelection.load(this));
+        List<AppSelection.App> shown = new java.util.ArrayList<>(candidates);
+        ListView list = new ListView(this);
+        list.setChoiceMode(ListView.CHOICE_MODE_MULTIPLE);
+        list.setDividerHeight(0);
+        android.util.LruCache<String,android.graphics.drawable.Drawable> icons = new android.util.LruCache<>(64);
+        BaseAdapter appAdapter=new BaseAdapter() {
+            public int getCount(){return shown.size();}
+            public Object getItem(int position){return shown.get(position);}
+            public long getItemId(int position){return position;}
+            public View getView(int position,View recycled,ViewGroup parent){
+                AppChoiceRow row=recycled instanceof AppChoiceRow?(AppChoiceRow)recycled:new AppChoiceRow();
+                AppSelection.App app=shown.get(position);
+                android.graphics.drawable.Drawable icon=icons.get(app.packageName);
+                if(icon==null){
+                    try{icon=getPackageManager().getApplicationIcon(app.packageName);}
+                    catch(android.content.pm.PackageManager.NameNotFoundException removed){icon=getPackageManager().getDefaultActivityIcon();}
+                    icons.put(app.packageName,icon);
+                }
+                row.icon.setImageDrawable(icon);row.name.setText(app.label);row.packageName.setText(app.packageName);
+                row.setContentDescription(app.label+", "+app.packageName);
+                row.setChecked(selected.contains(app.packageName));return row;
+            }
+        };
+        list.setAdapter(appAdapter);
+        for(int i=0;i<candidates.size();i++)list.setItemChecked(i,selected.contains(candidates.get(i).packageName));
+        list.setOnItemClickListener((parent,row,index,id)->{
+            String packageName=shown.get(index).packageName;
+            if(list.isItemChecked(index))selected.add(packageName);else selected.remove(packageName);
+        });
+        LinearLayout panel=new LinearLayout(this);panel.setOrientation(LinearLayout.VERTICAL);
+        EditText search=new EditText(this);search.setSingleLine(true);search.setHint(R.string.ui_search_apps);search.setPadding(dp(18),dp(10),dp(18),dp(10));panel.addView(search);
+        search.addTextChangedListener(new android.text.TextWatcher(){
+            public void beforeTextChanged(CharSequence text,int start,int count,int after){}
+            public void onTextChanged(CharSequence text,int start,int before,int count){
+                String query=text.toString().trim().toLowerCase(Locale.ROOT);shown.clear();
+                for(AppSelection.App app:candidates)if(app.label.toLowerCase(Locale.ROOT).contains(query)||app.packageName.toLowerCase(Locale.ROOT).contains(query))shown.add(app);
+                list.clearChoices();appAdapter.notifyDataSetChanged();for(int i=0;i<shown.size();i++)list.setItemChecked(i,selected.contains(shown.get(i).packageName));
+            }
+            public void afterTextChanged(android.text.Editable text){}
+        });
+        panel.addView(list,new LinearLayout.LayoutParams(-1,(int)(getResources().getDisplayMetrics().heightPixels*0.58f)));
+        AlertDialog dialog = new AlertDialog.Builder(this).setTitle(R.string.ui_apps)
+                .setView(panel)
+                .setNegativeButton(s("cancel"),null)
+                .setPositiveButton(s("save"),(choice,which) -> {
+                    // Save first, then cancel an active or in-progress connection generation.
+                    AppSelection.save(this,selected);
+                    controller.disconnect();
+                    showTab(3);
+                    Toast.makeText(this,s("apps_saved"),Toast.LENGTH_LONG).show();
+                }).create();
+        dialog.show();
+    }
+    private final class AppChoiceRow extends LinearLayout implements Checkable {
+        final ImageView icon;
+        final TextView name,packageName;
+        final CheckBox check;
+        AppChoiceRow(){
+            super(MainActivity.this);setOrientation(HORIZONTAL);setGravity(Gravity.CENTER_VERTICAL);
+            setPadding(dp(16),dp(10),dp(12),dp(10));setMinimumHeight(dp(72));
+            setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
+            icon=new ImageView(MainActivity.this);icon.setScaleType(ImageView.ScaleType.FIT_CENTER);
+            addView(icon,new LinearLayout.LayoutParams(dp(42),dp(42)));
+            LinearLayout labels=new LinearLayout(MainActivity.this);labels.setOrientation(VERTICAL);
+            LinearLayout.LayoutParams labelParams=new LinearLayout.LayoutParams(0,-2,1);labelParams.setMarginStart(dp(14));
+            addView(labels,labelParams);
+            name=new TextView(MainActivity.this);name.setTextSize(16);name.setTextColor(NAVY);labels.addView(name);
+            packageName=new TextView(MainActivity.this);packageName.setTextSize(11);packageName.setTextColor(MUTED);
+            packageName.setMaxLines(1);packageName.setEllipsize(android.text.TextUtils.TruncateAt.MIDDLE);labels.addView(packageName);
+            packageName.setVisibility(View.GONE);
+            check=new CheckBox(MainActivity.this);check.setClickable(false);check.setFocusable(false);addView(check);
+            icon.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+            labels.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
+            check.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+            setAccessibilityDelegate(new View.AccessibilityDelegate(){
+                @Override public void onInitializeAccessibilityNodeInfo(View host,android.view.accessibility.AccessibilityNodeInfo info){
+                    super.onInitializeAccessibilityNodeInfo(host,info);info.setCheckable(true);info.setChecked(isChecked());
+                    info.setClassName(CheckBox.class.getName());
+                }
+            });
+        }
+        @Override public void setChecked(boolean checked){check.setChecked(checked);}
+        @Override public boolean isChecked(){return check.isChecked();}
+        @Override public void toggle(){setChecked(!isChecked());}
+    }
+    private void editAdvertisedHost(){EditText input=new EditText(this);input.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_URI|InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);input.setSingleLine(true);input.setHint(s("endpoint_hint"));input.setText(controller.snapshot().advertisedHost);input.setPadding(dp(20),dp(12),dp(20),dp(12));AlertDialog dialog=new AlertDialog.Builder(this).setTitle(s("endpoint_title")).setMessage(s("endpoint_help")).setView(input).setNegativeButton(s("cancel"),null).setPositiveButton(s("save"),null).create();dialog.setOnShowListener(v->dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(w->{try{controller.setAdvertisedHost(input.getText().toString().trim());dialog.dismiss();Toast.makeText(this,s("saved"),Toast.LENGTH_SHORT).show();}catch(IllegalArgumentException e){input.setError(s("invalid_host"));}}));dialog.show();}
+    private void chooseLanguage(){String[] names={s("system_language"),"English","Русский","中文","日本語","Français","Italiano","Español","Español (México)"};String[] tags={"","en","ru","zh","ja","fr","it","es","es-MX"};String current=getSharedPreferences("ui",MODE_PRIVATE).getString("language","");int checked=0;for(int i=0;i<tags.length;i++)if(tags[i].equals(current))checked=i;new AlertDialog.Builder(this).setTitle(s("language")).setSingleChoiceItems(names,checked,(dialog,which)->{getSharedPreferences("ui",MODE_PRIVATE).edit().putString("language",tags[which]).apply();dialog.dismiss();recreate();}).setNegativeButton(s("cancel"),null).show();}
+}
+

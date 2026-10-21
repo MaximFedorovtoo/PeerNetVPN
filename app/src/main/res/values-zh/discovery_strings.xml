@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="discovery_title">自动发现</string>
+  <string name="discovery_help">开启共享，选择地区并连接节点。启动服务器帮助手机找到初始联系人，无需交换代码。</string>
+  <string name="discovery_catalog_notice">这里只显示已发现的网络。国家和空闲名额由参与者签名声明；公告不代表连接已验证。</string>
+  <string name="bootstrap_title">启动服务器</string>
+  <string name="bootstrap_help">可选 HTTPS 地址。服务器交换临时签名公告和加密配对消息。VPN 流量通过参与者传输。服务器停止后，已连接的手机仍可交换目录；新设备加入时可能再次需要服务器。</string>
+  <string name="bootstrap_edit">设置 HTTPS 地址</string>
+  <string name="bootstrap_hint">https://server.example/v1/exchange</string>
+  <string name="bootstrap_invalid">请输入 HTTPS 服务器地址或 /v1/exchange 端点，不含登录信息、查询参数或片段。</string>
+  <string name="discovery_state">发现：%1$s</string>
+  <string name="discovery_not_configured">未配置启动地址，也无已知联系人</string>
+  <string name="discovery_starting">等待共享和速度测量</string>
+  <string name="discovery_online">目录交换运行中</string>
+  <string name="discovery_offline">暂无可用目录联系人；正在重试</string>
+  <string name="discovery_pairing">正在建立加密对等连接</string>
+  <string name="discovery_hosting">本地启动端点运行于端口 %1$d</string>
+  <string name="discovery_regions">地区</string>
+  <string name="discovery_all">所有地区</string>
+  <string name="discovery_africa">非洲</string>
+  <string name="discovery_americas">美洲</string>
+  <string name="discovery_asia">亚洲</string>
+  <string name="discovery_europe">欧洲</string>
+  <string name="discovery_oceania">大洋洲</string>
+  <string name="discovery_unknown">未知地区</string>
+  <string name="discovery_empty">此地区尚未发现节点。</string>
+  <string name="discovery_announced">已公告 · 3 个名额中空闲 %1$d 个。连接尚未验证。</string>
+  <string name="discovery_manual">手动配对 · 备用方式</string>
+</resources>

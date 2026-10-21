@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="discovery_title">Automatic discovery</string>
+  <string name="discovery_help">Turn on sharing, choose a region and connect to a node. A startup server helps phones find their first contacts without exchanging codes.</string>
+  <string name="discovery_catalog_notice">This is the discovered part of the network. Countries and free slots are signed claims from participants; an announcement does not prove connectivity.</string>
+  <string name="bootstrap_title">Startup server</string>
+  <string name="bootstrap_help">Optional HTTPS address. The server exchanges temporary signed announcements and encrypted pairing messages. VPN traffic goes through participants. Known connected phones continue sharing the catalog if the server stops; new entry may require it again.</string>
+  <string name="bootstrap_edit">Set HTTPS address</string>
+  <string name="bootstrap_hint">https://server.example/v1/exchange</string>
+  <string name="bootstrap_invalid">Enter an HTTPS origin or /v1/exchange endpoint, without login, query or fragment.</string>
+  <string name="discovery_state">Discovery: %1$s</string>
+  <string name="discovery_not_configured">No startup address or known contacts</string>
+  <string name="discovery_starting">Waiting for sharing and speed measurement</string>
+  <string name="discovery_online">Catalog exchange active</string>
+  <string name="discovery_offline">No catalog contact available; retrying</string>
+  <string name="discovery_pairing">Establishing an encrypted peer connection</string>
+  <string name="discovery_hosting">Local startup endpoint active on port %1$d</string>
+  <string name="discovery_regions">Region</string>
+  <string name="discovery_all">All regions</string>
+  <string name="discovery_africa">Africa</string>
+  <string name="discovery_americas">Americas</string>
+  <string name="discovery_asia">Asia</string>
+  <string name="discovery_europe">Europe</string>
+  <string name="discovery_oceania">Oceania</string>
+  <string name="discovery_unknown">Unknown region</string>
+  <string name="discovery_empty">No nodes found in this region.</string>
+  <string name="discovery_announced">Announced · %1$d of 3 slots free. Connection not yet verified.</string>
+  <string name="discovery_manual">Manual pairing · backup option</string>
+</resources>

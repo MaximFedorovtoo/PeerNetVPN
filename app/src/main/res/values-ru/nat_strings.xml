@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="nat_title">Прямое сопряжение</string>
+    <string name="nat_help">Включите раздачу на обоих телефонах. Создайте приглашение, передайте его другому телефону и импортируйте ответ. Приложение попробует прямое соединение через публичный STUN; в некоторых сетях нужен доступный участник-посредник.</string>
+    <string name="nat_create">Создать приглашение</string>
+    <string name="nat_import">Вставить приглашение или ответ</string>
+    <string name="nat_share">Поделиться кодом</string>
+    <string name="nat_start_sharing">Сначала включите раздачу.</string>
+    <string name="nat_connecting">Поиск прямого пути…</string>
+    <string name="nat_offer_ready">Передайте приглашение другому телефону и вставьте его ответ.</string>
+    <string name="nat_answer_ready">Передайте ответ обратно на первый телефон.</string>
+    <string name="nat_connected">Прямой канал готов. Выберите узел ниже для запуска VPN.</string>
+    <string name="nat_invalid">Неверный код или ответ от другого сопряжения.</string>
+    <string name="nat_expired">Срок истёк. Создайте новое приглашение.</string>
+    <string name="nat_unavailable">Прямой канал недоступен или достигнут лимит.</string>
+    <string name="nat_idle">Можно начать сопряжение.</string>
+    <string name="nat_secret_notice">Код предоставляет доступ к вашему узлу. Передавайте его только нужному участнику. Срок действия — до 5 минут. После смены сети выполните сопряжение заново.</string>
+    <string name="nat_copy">Скопировать код</string>
+</resources>

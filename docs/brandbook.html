@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>PeerNet — брендбук интерфейса</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #081524;
+      --text: #EDF7FF;
+      --muted: #A5BBCF;
+      --accent: #28E2DD;
+      --surface: #122A40;
+      --raised-a: #1B3851;
+      --raised-b: #122A40;
+      --stroke: #36546C;
+      --primary-a: #58F3E9;
+      --primary-b: #1CC7D2;
+      --ink: #081524;
+      --danger: #FF8E9A;
+      --ok: #82E6B4;
+      --radius-card: 22px;
+      --radius-button: 16px;
+      --shadow: 0 12px 32px #020A12A8;
+      font-family: Roboto, "Arial", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; color: var(--text); background: var(--bg); line-height: 1.55; }
+    .page { width: min(1160px, calc(100% - 40px)); margin: auto; }
+    .hero { position: relative; overflow: hidden; padding: 64px 0 54px; border-bottom: 1px solid var(--stroke); }
+    .hero:after { content: ""; position: absolute; width: 420px; height: 420px; right: -100px; top: -170px; border-radius: 50%; background: radial-gradient(circle, #28E2DD24 0, transparent 68%); pointer-events: none; }
+    .topline { display: flex; align-items: center; gap: 14px; color: var(--muted); font-size: 12px; letter-spacing: .12em; text-transform: uppercase; }
+    .brand { display: inline-flex; align-items: center; gap: 11px; color: var(--text); font-size: 20px; font-weight: 700; letter-spacing: -.03em; }
+    .brand svg { width: 34px; height: 34px; color: var(--accent); }
+    h1 { max-width: 760px; margin: 44px 0 14px; font-size: clamp(38px, 7vw, 68px); line-height: 1.02; letter-spacing: -.055em; }
+    h1 span { color: var(--accent); }
+    .lead { max-width: 680px; color: var(--muted); font-size: 18px; }
+    .version { display: inline-block; margin-top: 16px; border: 1px solid var(--stroke); border-radius: 999px; padding: 6px 11px; color: var(--muted); font-size: 12px; }
+    main { padding: 12px 0 64px; }
+    section { padding: 42px 0; border-bottom: 1px solid #36546C88; }
+    .section-head { display: grid; grid-template-columns: 70px minmax(0,1fr); gap: 14px; align-items: start; margin-bottom: 24px; }
+    .num { padding-top: 7px; color: var(--accent); font: 700 12px/1 Roboto, Arial, sans-serif; letter-spacing: .12em; }
+    h2 { margin: 0; font-size: 27px; line-height: 1.15; letter-spacing: -.035em; }
+    h3 { margin: 0 0 9px; font-size: 20px; line-height: 1.25; }
+    p { margin: 8px 0 0; }
+    .muted { color: var(--muted); }
+    .grid { display: grid; gap: 16px; }
+    .two { grid-template-columns: repeat(2, minmax(0,1fr)); }
+    .three { grid-template-columns: repeat(3, minmax(0,1fr)); }
+    .four { grid-template-columns: repeat(4, minmax(0,1fr)); }
+    .panel { border: 1px solid var(--stroke); border-radius: var(--radius-card); background: var(--surface); padding: 18px; }
+    .panel.raised { background: linear-gradient(145deg, var(--raised-a), var(--raised-b)); box-shadow: var(--shadow); }
+    .small-label { color: var(--muted); font-size: 12px; letter-spacing: .04em; }
+    .swatch { display: flex; min-height: 92px; flex-direction: column; justify-content: space-between; padding: 12px; border: 1px solid #EDF7FF26; border-radius: 14px; }
+    .swatch b { font-size: 14px; }
+    .swatch code, code { font: 12px/1.4 ui-monospace, Consolas, monospace; }
+    .sample-bg { background: var(--bg); } .sample-surface { background: var(--surface); }
+    .sample-raised { background: linear-gradient(145deg, var(--raised-a), var(--raised-b)); }
+    .sample-accent { color: var(--ink); background: var(--accent); }
+    .sample-primary { color: var(--ink); background: linear-gradient(105deg, var(--primary-a), var(--primary-b)); }
+    .sample-text { color: var(--ink); background: var(--text); }
+    .sample-muted { color: var(--ink); background: var(--muted); }
+    .sample-stroke { background: var(--surface); box-shadow: inset 0 0 0 2px var(--stroke); }
+    .token-line { display: flex; align-items: center; gap: 12px; margin: 10px 0; color: var(--muted); font-size: 14px; }
+    .token-line code { min-width: 122px; color: var(--text); }
+    .wordmark-demo { display: flex; min-height: 150px; align-items: center; justify-content: center; gap: 14px; border-radius: 18px; background: var(--bg); }
+    .wordmark-demo svg { width: 48px; height: 48px; color: var(--accent); }
+    .wordmark-demo strong { font-size: 32px; letter-spacing: -.05em; }
+    .node-mark { fill: var(--bg); stroke: currentColor; stroke-width: 3; }
+    .node-link { fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; }
+    .button-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+    .button { display: inline-flex; min-height: 52px; align-items: center; justify-content: center; gap: 9px; padding: 0 18px; border: 1px solid transparent; border-radius: var(--radius-button); font-size: 15px; font-weight: 700; }
+    .button.primary { color: var(--ink); background: linear-gradient(105deg, var(--primary-a), var(--primary-b)); box-shadow: 0 5px 16px #28E2DD35; }
+    .button.secondary { color: var(--text); background: linear-gradient(145deg, var(--raised-a), var(--raised-b)); border-color: var(--stroke); box-shadow: 0 3px 10px #020A1266; }
+    .button.quiet { color: var(--accent); background: transparent; border-color: var(--stroke); }
+    .button.disabled { color: #A5BBCF88; background: #122A40; border-color: #36546C88; box-shadow: none; }
+    .button:focus-visible, a:focus-visible { outline: 3px solid var(--text); outline-offset: 3px; }
+    .demo-card { display: grid; gap: 17px; }
+    .card-title { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-weight: 700; }
+    .pill { padding: 4px 9px; border: 1px solid #82E6B466; border-radius: 999px; color: var(--ok); font-size: 12px; white-space: nowrap; }
+    .metric { display: flex; gap: 24px; color: var(--muted); font-size: 14px; }
+    .metric b { display: block; color: var(--text); font-size: 18px; }
+    .type-sample { display: grid; gap: 13px; }
+    .type-row { display: grid; grid-template-columns: 120px 1fr; align-items: baseline; gap: 12px; }
+    .type-row .spec { color: var(--muted); font-size: 12px; }
+    .type-27 { font-size: 27px; font-weight: 700; } .type-24 { font-size: 24px; font-weight: 700; }
+    .type-20 { font-size: 20px; font-weight: 700; } .type-15 { font-size: 15px; }
+    .type-14 { font-size: 14px; } .type-12 { font-size: 12px; }
+    .map-wrap { overflow: hidden; padding: 0; }
+    .map-head { display: flex; justify-content: space-between; padding: 18px 18px 0; }
+    .map-svg { display: block; width: 100%; height: auto; padding: 4px 12px 0; }
+    .map-note { margin: 0; padding: 12px 18px 18px; color: var(--muted); font-size: 12px; }
+    .map-grid { fill: none; stroke: #36546C66; stroke-width: 1; }
+    .map-land { fill: #1B3851; stroke: #36546C; stroke-width: 1.5; }
+    .map-dot { fill: var(--accent); stroke: #081524; stroke-width: 3; }
+    .map-ring { fill: #28E2DD22; stroke: #28E2DD77; stroke-width: 1.5; }
+    .map-label { fill: var(--muted); font: 12px Roboto, Arial, sans-serif; }
+    .state { position: relative; overflow: hidden; min-height: 190px; }
+    .state-icon { display: grid; width: 38px; height: 38px; place-items: center; margin-bottom: 16px; border: 1px solid var(--stroke); border-radius: 13px; color: var(--accent); font-size: 18px; }
+    .state h3 { font-size: 16px; }
+    .state p { color: var(--muted); font-size: 14px; }
+    .status-line { display: flex; align-items: center; gap: 8px; margin-top: 16px; color: var(--muted); font-size: 12px; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+    .dot.off { background: var(--muted); } .dot.warn { background: #FFC978; }
+    .copy { display: grid; grid-template-columns: 180px 1fr; gap: 12px; padding: 10px 0; border-bottom: 1px solid #36546C66; }
+    .copy:last-child { border-bottom: 0; }
+    .copy code { color: var(--accent); }
+    .copy span { color: var(--text); }
+    .notice { border-left: 3px solid var(--accent); padding: 12px 16px; color: var(--muted); background: #122A40; border-radius: 0 12px 12px 0; }
+    .rule-list { display: grid; gap: 9px; margin: 0; padding-left: 20px; color: var(--muted); }
+    .rule-list li::marker { color: var(--accent); }
+    footer { padding: 28px 0 42px; color: var(--muted); font-size: 12px; }
+    @media (max-width: 760px) {
+      .two, .three, .four { grid-template-columns: repeat(2, minmax(0,1fr)); }
+      .section-head { grid-template-columns: 42px 1fr; }
+      .copy { grid-template-columns: 145px 1fr; }
+    }
+    @media (max-width: 520px) {
+      .page { width: min(100% - 28px, 1160px); }
+      .hero { padding: 38px 0 34px; }
+      h1 { margin-top: 32px; }
+      section { padding: 30px 0; }
+      .two, .three, .four { grid-template-columns: 1fr; }
+      .section-head { grid-template-columns: 30px 1fr; gap: 8px; }
+      .button { flex: 1 1 100%; }
+      .type-row { grid-template-columns: 82px 1fr; }
+      .copy { grid-template-columns: 1fr; gap: 3px; }
+      .map-label { font-size: 10px; }
+    }
+    @page { size: A4; margin: 14mm; }
+    @media print {
+      :root { --bg: #081524; --surface: #122A40; }
+      body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+      .page { width: 100%; }
+      .hero { padding: 24px 0; }
+      section { padding: 22px 0; break-inside: avoid; }
+      .panel, .swatch { break-inside: avoid; }
+      .hero:after { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <header class="hero">
+    <div class="page">
+      <div class="topline">
+        <div class="brand" aria-label="PeerNet">
+          <svg viewBox="0 0 40 40" role="img" aria-label="Знак связанных узлов"><path class="node-link" d="M11 12 28 9M11 12l5 17m12-20 3 19m-15-1 15 1"/><circle class="node-mark" cx="10" cy="12" r="4"/><circle class="node-mark" cx="29" cy="8" r="4"/><circle class="node-mark" cx="17" cy="30" r="4"/><circle class="node-mark" cx="32" cy="29" r="4"/></svg>
+          PeerNet
+        </div>
+        <span>Система интерфейса</span>
+      </div>
+      <h1>Брендбук<br><span>PeerNet</span></h1>
+      <p class="lead">Визуальные правила интерфейса децентрализованной сети: спокойная тёмная основа, ясные состояния соединения и карта как ориентир.</p>
+      <span class="version">Версия 2 · 21 октября 2026</span>
+    </div>
+  </header>
+
+  <main class="page">
+    <section>
+      <div class="section-head"><span class="num">01</span><div><h2>Основа</h2><p class="muted">PeerNet помогает находить и подключать сетевые узлы. Интерфейс должен объяснять, что найдено, что проверено и какое действие доступно.</p></div></div>
+      <div class="grid two">
+        <div class="panel raised"><h3>Характер</h3><p>Технологичный, ясный, сдержанный. Глубокий синий задаёт фон, бирюзовый отмечает действие и сетевую активность. Объём создают тонкие контуры, мягкие тени и короткие градиенты.</p></div>
+        <div class="panel"><h3>Имя и знак</h3><p>Используйте написание <strong>PeerNet</strong>. Знак продолжает существующий мотив связанных узлов: точки и линии показывают сеть. Сохраняйте его простым и читаемым в малом размере; не заменяйте новым несвязанным логотипом.</p><p class="muted">Не называйте продукт VPN: это сеть узлов и обмена подключением.</p></div>
+      </div>
+      <div class="wordmark-demo" style="margin-top:16px">
+        <svg viewBox="0 0 40 40" aria-hidden="true"><path class="node-link" d="M11 12 28 9M11 12l5 17m12-20 3 19m-15-1 15 1"/><circle class="node-mark" cx="10" cy="12" r="4"/><circle class="node-mark" cx="29" cy="8" r="4"/><circle class="node-mark" cx="17" cy="30" r="4"/><circle class="node-mark" cx="32" cy="29" r="4"/></svg><strong>PeerNet</strong>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-head"><span class="num">02</span><div><h2>Цвета</h2><p class="muted">Цвета интерфейса заданы как токены. Бирюза означает действие или активное состояние, а смысл всегда дублируется текстом или формой.</p></div></div>
+      <div class="grid four">
+        <div class="swatch sample-bg"><b>Фон</b><code>#081524</code></div>
+        <div class="swatch sample-text"><b>Основной текст</b><code>#EDF7FF</code></div>
+        <div class="swatch sample-muted"><b>Вторичный текст</b><code>#A5BBCF</code></div>
+        <div class="swatch sample-accent"><b>Акцент</b><code>#28E2DD</code></div>
+        <div class="swatch sample-surface"><b>Поверхность</b><code>#122A40</code></div>
+        <div class="swatch sample-raised"><b>Поднятая поверхность</b><code>#1B3851 → #122A40</code></div>
+        <div class="swatch sample-stroke"><b>Контур</b><code>#36546C</code></div>
+        <div class="swatch sample-primary"><b>Основная кнопка</b><code>#58F3E9 → #1CC7D2</code></div>
+      </div>
+      <div class="grid two" style="margin-top:16px">
+        <div class="panel"><h3>Применение</h3><div class="token-line"><code>background</code><span>#081524 — экран и большие поля</span></div><div class="token-line"><code>surface</code><span>#122A40 — карточки и панели</span></div><div class="token-line"><code>raised</code><span>Градиент — выделенная карточка</span></div><div class="token-line"><code>accent</code><span>#28E2DD — маркеры, фокус, статус</span></div></div>
+        <div class="panel"><h3>Контраст</h3><p>Основной текст — #EDF7FF. Для вторичных подписей — #A5BBCF на тёмной поверхности. На основной кнопке текст #081524. Не ставьте текст поверх яркого градиента без проверки контраста.</p></div>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-head"><span class="num">03</span><div><h2>Типографика и ритм</h2><p class="muted">Используйте системный sans-serif Android (Roboto). Размеры ниже указаны в sp, отступы и радиусы — в dp.</p></div></div>
+      <div class="grid two">
+        <div class="panel type-sample">
+          <div class="type-row"><span class="spec">Заголовок экрана · 27</span><span class="type-27">Карта сети</span></div>
+          <div class="type-row"><span class="spec">Заголовок блока · 24</span><span class="type-24">Доступные узлы</span></div>
+          <div class="type-row"><span class="spec">Заголовок карточки · 20</span><span class="type-20">Северный регион</span></div>
+          <div class="type-row"><span class="spec">Основной текст · 15</span><span class="type-15">Вы подключены к узлу сети</span></div>
+          <div class="type-row"><span class="spec">Вторичный · 14</span><span class="type-14">Связь проверена недавно</span></div>
+          <div class="type-row"><span class="spec">Подпись · 12</span><span class="type-12 muted">ОБНАРУЖЕННЫЕ УЗЛЫ</span></div>
+        </div>
+        <div class="panel"><h3>Размеры компонентов</h3><div class="token-line"><code>Карточка</code><span>радиус 22dp · padding 18dp (компактная 16dp)</span></div><div class="token-line"><code>Интервал</code><span>16dp между блоками</span></div><div class="token-line"><code>Кнопка</code><span>высота от 52dp · радиус 16dp</span></div><div class="token-line"><code>Касание</code><span>минимальная активная область 48dp</span></div><div class="token-line"><code>Тень</code><span>elevation карточки 4dp; кнопки 2–5dp</span></div><p class="muted">При увеличенном системном шрифте текст переносится, а высота контейнера растёт. Не обрезайте подписи ради фиксированной высоты.</p></div>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-head"><span class="num">04</span><div><h2>Кнопки и карточки</h2><p class="muted">Основное действие заметно сразу. Вторичные действия сохраняют контраст, но не конкурируют с основным.</p></div></div>
+      <div class="panel">
+        <div class="small-label" style="margin-bottom:13px">ВАРИАНТЫ КНОПОК</div>
+        <div class="button-row"><span class="button primary">Подключить</span><span class="button secondary">Открыть карту</span><span class="button quiet">Подробнее</span><span class="button disabled" aria-disabled="true">Подключить</span></div>
+        <p class="muted" style="margin-top:14px">Неактивное состояние различается яркостью и отсутствием тени, а его причина остаётся видимой рядом. Не используйте один цвет как единственный сигнал.</p>
+      </div>
+      <div class="grid two" style="margin-top:16px">
+        <div class="panel raised demo-card"><div class="card-title"><span>Узел PeerNet</span><span class="pill">Связь проверена</span></div><div class="muted">Европа · найден недавно</div><div class="metric"><span><b>2,4 ГБ</b>Получено</span><span><b>1,1 ГБ</b>Отдано</span></div><span class="button primary">Подключить</span></div>
+        <div class="panel demo-card"><div class="card-title"><span>Региональная карточка</span><span class="small-label">3 СЛОТА</span></div><p class="muted">Сочетайте заливку поверхности, тонкий контур и ясный заголовок. Статус и действие не должны сливаться.</p><span class="button secondary">Подробнее</span></div>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-head"><span class="num">05</span><div><h2>Карта и достоверность</h2><p class="muted">Карта помогает увидеть обнаруженные узлы по регионам. Она передаёт ориентировочное распределение, а не точную географию.</p></div></div>
+      <div class="panel map-wrap">
+        <div class="map-head"><div><h3>Узлы по регионам</h3><div class="small-label">ПРИМЕР</div></div><span class="pill">Найдено: 12</span></div>
+        <svg class="map-svg" viewBox="0 0 720 290" role="img" aria-label="Схематичная карта регионов с несколькими обнаруженными узлами">
+          <path class="map-grid" d="M20 70H700M20 145H700M20 220H700M120 18V270M240 18V270M360 18V270M480 18V270M600 18V270"/>
+          <path class="map-land" d="m91 72 30-24 47 8 30-18 45 16 23 34-17 16-7 34-27 8-18 28-27-12-11-30-25-8-14-29-28-8z"/>
+          <path class="map-land" d="m224 183 31 8 15 35-12 34-18 22-16-35-12-31z"/>
+          <path class="map-land" d="m335 68 29-19 38 8 10 18 37 5 19 25-15 17-37 1-16 21-22-12-31 6-20-19-26-7-11-27z"/>
+          <path class="map-land" d="m381 147 39-12 40 14 15 38-19 49-30 20-28-28-23-42z"/>
+          <path class="map-land" d="m491 74 46-19 45 13 38-2 36 25-4 23-35 8-22 24-43-9-14-26-33-7-24-18z"/>
+          <circle class="map-ring" cx="176" cy="101" r="15"/><circle class="map-dot" cx="176" cy="101" r="5"/>
+          <circle class="map-ring" cx="377" cy="98" r="20"/><circle class="map-dot" cx="377" cy="98" r="6"/>
+          <circle class="map-ring" cx="524" cy="108" r="13"/><circle class="map-dot" cx="524" cy="108" r="5"/>
+          <circle class="map-ring" cx="426" cy="185" r="14"/><circle class="map-dot" cx="426" cy="185" r="5"/>
+          <text class="map-label" x="100" y="265">Условные контуры · не точные границы</text>
+        </svg>
+        <p class="map-note">Пример иллюстрирует принцип: регионы и приблизительные маркеры. Показывайте обнаруженное подмножество узлов, а не весь интернет и не всемирную перепись. Не выводите точное местоположение без надёжных данных и отдельного основания.</p>
+      </div>
+      <div class="grid three" style="margin-top:16px">
+        <div class="panel"><h3>Найден</h3><p class="muted">Узел объявлен в каталоге. Доступность ещё не проверена.</p></div>
+        <div class="panel"><h3>Связь проверена</h3><p class="muted">Проверка соединения успешна. Это не обещание постоянной доступности.</p></div>
+        <div class="panel"><h3>Нет связи</h3><p class="muted">Покажите статус словами и предложите понятный следующий шаг.</p></div>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-head"><span class="num">06</span><div><h2>Состояния поиска</h2><p class="muted">Пустой экран сообщает причину и действие. Не создавайте впечатление ошибки, если поиск ещё продолжается.</p></div></div>
+      <div class="grid three">
+        <article class="panel state"><div class="state-icon" aria-hidden="true">⌕</div><h3>Поиск узлов…</h3><p>Ищем узлы. Они появятся здесь автоматически.</p><div class="status-line"><span class="dot"></span>Поиск активен</div></article>
+        <article class="panel state"><div class="state-icon" aria-hidden="true">⌖</div><h3>Узлы не найдены</h3><p>Новые узлы появятся автоматически.</p><div class="status-line"><span class="dot off"></span>Пока пусто</div></article>
+        <article class="panel state"><div class="state-icon" aria-hidden="true">↻</div><h3>Нет связи с каталогом</h3><p>Проверьте интернет или повторите поиск.</p><div class="status-line"><span class="dot warn"></span><span class="button quiet" style="min-height:38px;padding:0 12px">Повторить поиск</span></div></article>
+        <article class="panel state"><div class="state-icon" aria-hidden="true">⇧</div><h3>Включите раздачу</h3><p>Включите раздачу для поиска узлов.</p><div class="status-line"><span class="dot off"></span>Обнаружение выключено</div></article>
+        <article class="panel state"><div class="state-icon" aria-hidden="true">…</div><h3>Поиск занимает больше времени</h3><p>Поиск продолжается. Повторите его, если узлы не появятся.</p><div class="status-line"><span class="dot warn"></span>После 30 секунд</div></article>
+        <article class="panel state"><div class="state-icon" aria-hidden="true">◎</div><h3>В этом регионе нет узлов</h3><p>Выберите другой регион или покажите все регионы.</p><div class="status-line"><span class="dot off"></span>Фильтр региона</div></article>
+      </div>
+      <p class="notice" style="margin-top:16px">Состояние «поиск занимает больше времени» появляется после 30 секунд. Сохраняйте доступным исходное действие поиска и не маскируйте задержку бесконечной анимацией.</p>
+    </section>
+
+    <section>
+      <div class="section-head"><span class="num">07</span><div><h2>Текст интерфейса и локализация</h2><p class="muted">Короткие фразы помогают быстро понять состояние. Локализованные строки должны звучать естественно и свободно переноситься.</p></div></div>
+      <div class="panel">
+        <div class="copy"><code>ui_searching</code><span>Ищем узлы…</span></div>
+        <div class="copy"><code>ui_empty</code><span>Узлы не найдены</span></div>
+        <div class="copy"><code>ui_catalog_offline</code><span>Нет связи с каталогом</span></div>
+        <div class="copy"><code>ui_share_to_search</code><span>Включите раздачу для поиска</span></div>
+        <div class="copy"><code>ui_search_slow</code><span>Поиск занимает больше времени</span></div>
+        <div class="copy"><code>ui_found · ui_slots · ui_limit</code><span>Найдено: %1$d · Свободно %1$d из 3 · Раздача до %1$s</span></div>
+      </div>
+      <div class="grid two" style="margin-top:16px">
+        <div class="panel"><h3>Языки</h3><p>Поддерживайте единые ключи в английском, русском, китайском, японском, французском, итальянском, испанском и мексиканском испанском ресурсах.</p><p class="muted">Вёрстка допускает перенос: французские и испанские фразы часто длиннее русских. Для чисел и лимитов сохраняйте форматные параметры, не склеивайте число с текстом.</p></div>
+        <div class="panel"><h3>Тон</h3><p>Пишите прямо и спокойно: «Подключить», «Повторить поиск», «Связь проверена». Сначала сообщите факт, затем действие. Избегайте обещаний, которых состояние сети не подтверждает.</p></div>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-head"><span class="num">08</span><div><h2>Доступность и движение</h2><p class="muted">Интерфейс остаётся понятным при слабом зрении, увеличенном шрифте и выключенной анимации.</p></div></div>
+      <div class="grid two">
+        <div class="panel"><h3>Доступность</h3><ul class="rule-list"><li>Касаемая область элемента — не меньше 48dp.</li><li>Используйте текстовые подписи вместе с цветом, значком или формой.</li><li>Сохраняйте читаемый контраст текста на поверхности и кнопках.</li><li>Поддерживайте масштаб системного шрифта и перенос строк.</li><li>Для значимых значков задавайте доступное описание.</li></ul></div>
+        <div class="panel"><h3>Анимация</h3><ul class="rule-list"><li>Отклик на нажатие и смена состояния: 120–180ms.</li><li>Короткий fade или сдвиг объясняет появление контента.</li><li>Маркер может один раз мягко выделиться при появлении узла.</li><li>Не используйте бесконечные декоративные пульсации и вращения.</li><li>Уважайте системное ограничение движения.</li></ul></div>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-head"><span class="num">09</span><div><h2>Применение в Android</h2><p class="muted">Брендбук описывает визуальные правила и точки, где команда проверяет их применение.</p></div></div>
+      <div class="grid two">
+        <div class="panel"><h3>Файлы интерфейса</h3><ul class="rule-list"><li><code>MainActivity.java</code> — экран и действия.</li><li><code>NetworkMapView.java</code> — схема карты.</li><li><code>SearchPresentation.java</code> — представление состояний поиска.</li><li><code>styles.xml</code> — тема и визуальные атрибуты.</li><li><code>ui_strings.xml</code> — базовые строки и переводы.</li></ul></div>
+        <div class="panel raised"><h3>Перед выпуском экрана</h3><ul class="rule-list"><li>Проверьте цвет поверхности, текста и основного действия.</li><li>Покажите найденный и проверенный статусы разными словами.</li><li>Проверьте пустое, офлайн и медленное состояние.</li><li>Проверьте длинные переводы и системный крупный шрифт.</li><li>Проверьте касания, контраст и отсутствие лишней постоянной анимации.</li><li>Убедитесь, что схема карты подписана как пример или приблизительное распределение.</li></ul></div>
+      </div>
+    </section>
+  </main>
+<section class="page"><h2>Эталон компоновки версии 2</h2><p>Приоритет имеют утверждённые пользователем изображения главного экрана, карты и состояний поиска. Версия 0.5 слишком упростила этот эталон; её крупные отдельные блоки и грубые контуры карты не являются образцом для новых экранов.</p><ul><li>Главная: PeerNet с бирюзовым Net, шестерёнка справа; одна карточка статуса с объёмным знаком сети и двумя кнопками в ряд; три счётчика в одной строке; карта; компактная панель приложений.</li><li>Карта: собственный заголовок со стрелкой назад, подробные контуры стран на тёмном фоне, фильтры и компактные горизонтальные карточки узлов с флагом и кнопкой.</li><li>Пустой результат и ошибка: крупный значок, центрированный заголовок, короткое пояснение и действие; без лишней рамки вокруг каждого текста.</li><li>Настоящие векторные значки навигации вместо символов шрифта. Градиенты, блики и мягкое свечение сохраняются в реализации, не только на иллюстрации.</li><li>Демонстрационные числа и точки из макета не переносятся в рабочие данные. При крупном системном шрифте допускаются перенос и прокрутка.</li></ul></section>  <footer class="page">PeerNet · Брендбук интерфейса · Версия 2 · 21.10.2026</footer>
+</body>
+</html>
+

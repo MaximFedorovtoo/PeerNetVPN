@@ -1,0 +1,27 @@
+.tools/
+.gradle/
+**/build/
+local.properties
+*.jks
+*.keystore
+.idea/
+captures/
+dist/
+app/libs/*.aar
+
+# Local credentials and temporary outputs
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+keystore.properties
+*.log
+*.tmp
+*.apk
+*.aab
+__pycache__/
+.DS_Store
+Thumbs.db

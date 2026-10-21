@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="nat_title">直接配对</string>
+    <string name="nat_help">在两部手机上开启共享。创建邀请并发送到另一部手机，然后导入回复。应用通过公共 STUN 尝试直接连接；某些网络需要可访问的中继参与者。</string>
+    <string name="nat_create">创建邀请</string>
+    <string name="nat_import">导入邀请或回复</string>
+    <string name="nat_share">分享配对码</string>
+    <string name="nat_start_sharing">请先开启共享。</string>
+    <string name="nat_connecting">正在寻找直连路径…</string>
+    <string name="nat_offer_ready">将邀请发送到另一部手机并导入回复。</string>
+    <string name="nat_answer_ready">将回复发送回第一部手机。</string>
+    <string name="nat_connected">直连通道已就绪。选择下方节点启动 VPN。</string>
+    <string name="nat_invalid">配对码无效或不匹配。</string>
+    <string name="nat_expired">配对已过期。请创建新邀请。</string>
+    <string name="nat_unavailable">直连不可用或已达到容量限制。</string>
+    <string name="nat_idle">可以开始配对。</string>
+    <string name="nat_secret_notice">此代码允许访问您的节点。请仅发送给指定参与者，有效期最长 5 分钟。网络更改后需重新配对。</string>
+    <string name="nat_copy">复制代码</string>
+</resources>

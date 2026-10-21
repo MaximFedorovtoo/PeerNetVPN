@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="nat_title">直接ペアリング</string>
+    <string name="nat_help">両方の端末で共有を開始します。招待を作成して相手に送り、返信を読み込みます。公開 STUN で直接接続を試みますが、ネットワークによっては到達可能な中継参加者が必要です。</string>
+    <string name="nat_create">招待を作成</string>
+    <string name="nat_import">招待または返信を貼り付け</string>
+    <string name="nat_share">コードを共有</string>
+    <string name="nat_start_sharing">先に共有を開始してください。</string>
+    <string name="nat_connecting">直接経路を検索中…</string>
+    <string name="nat_offer_ready">招待を相手の端末に送り、返信を読み込んでください。</string>
+    <string name="nat_answer_ready">返信を最初の端末に送ってください。</string>
+    <string name="nat_connected">直接通信の準備ができました。下のノードを選んで VPN を開始してください。</string>
+    <string name="nat_invalid">コードが無効か、この招待への返信ではありません。</string>
+    <string name="nat_expired">期限切れです。招待を作成し直してください。</string>
+    <string name="nat_unavailable">直接通信が利用できないか、上限に達しました。</string>
+    <string name="nat_idle">ペアリングを開始できます。</string>
+    <string name="nat_secret_notice">このコードでノードへのアクセスを許可します。意図した参加者だけに送ってください。有効期間は最大 5 分です。ネットワーク変更後は再ペアリングが必要です。</string>
+    <string name="nat_copy">コードをコピー</string>
+</resources>

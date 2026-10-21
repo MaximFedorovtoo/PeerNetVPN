@@ -1,0 +1,3 @@
+<resources>
+    <string name="bootstrap_default_url" translatable="false">https://peernet.winknas.i234.me:5001/v1/exchange</string>
+</resources>

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="nat_title">Direct pairing</string>
+    <string name="nat_help">Start sharing on both phones. Create an invitation, send it to the other phone, then import its reply. The app attempts a direct connection using public STUN; some networks require a reachable participant.</string>
+    <string name="nat_create">Create invitation</string>
+    <string name="nat_import">Import invitation or reply</string>
+    <string name="nat_share">Share pairing code</string>
+    <string name="nat_start_sharing">Start sharing first.</string>
+    <string name="nat_connecting">Finding a direct path…</string>
+    <string name="nat_offer_ready">Send this invitation to the other phone and import its reply.</string>
+    <string name="nat_answer_ready">Send the reply back to the first phone.</string>
+    <string name="nat_connected">Direct channel ready. Select the node below to start VPN.</string>
+    <string name="nat_invalid">Invalid or mismatched pairing code.</string>
+    <string name="nat_expired">Pairing expired. Create a new invitation.</string>
+    <string name="nat_unavailable">Direct channel unavailable or capacity reached.</string>
+    <string name="nat_idle">Ready to pair.</string>
+    <string name="nat_secret_notice">This code grants access to your node. Send it only to the intended participant. It expires within 5 minutes. Pair again after a network change.</string>
+    <string name="nat_copy">Copy code</string>
+</resources>

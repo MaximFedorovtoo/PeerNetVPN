@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="nat_title">Emparejamiento directo</string>
+    <string name="nat_help">Activa el uso compartido en ambos celulares. Crea y envía una invitación, después importa la respuesta. La conexión directa usa STUN público; algunas redes requieren un participante de retransmisión accesible.</string>
+    <string name="nat_create">Crear invitación</string>
+    <string name="nat_import">Importar invitación o respuesta</string>
+    <string name="nat_share">Compartir código</string>
+    <string name="nat_start_sharing">Activa primero el uso compartido.</string>
+    <string name="nat_connecting">Buscando ruta directa…</string>
+    <string name="nat_offer_ready">Envía esta invitación e importa la respuesta.</string>
+    <string name="nat_answer_ready">Envía la respuesta al primer celular.</string>
+    <string name="nat_connected">Canal directo listo. Selecciona el nodo para iniciar la VPN.</string>
+    <string name="nat_invalid">Código no válido o respuesta incompatible.</string>
+    <string name="nat_expired">Emparejamiento caducado. Crea otra invitación.</string>
+    <string name="nat_unavailable">Canal directo no disponible o límite alcanzado.</string>
+    <string name="nat_idle">Listo para emparejar.</string>
+    <string name="nat_secret_notice">Este código permite acceder a tu nodo. Envíalo solo al participante previsto. Caduca en un máximo de 5 minutos. Repite tras cambiar de red.</string>
+    <string name="nat_copy">Copiar código</string>
+</resources>

@@ -1,0 +1,21 @@
+services:
+  discovery:
+    image: eclipse-temurin:17.0.20.1_1-jre-jammy
+    container_name: peernet-discovery
+    restart: unless-stopped
+    user: "65534:65534"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 192m
+    pids_limit: 64
+    ports:
+      - "127.0.0.1:39282:39282"
+    volumes:
+      - ./peernet-bootstrap.jar:/opt/peernet/bootstrap.jar:ro
+    command: [java, -Xms16m, -Xmx96m, -XX:ActiveProcessorCount=1, -jar, /opt/peernet/bootstrap.jar, container, "39282"]
+    logging:
+      driver: json-file
+      options:
+        max-size: 1m
+        max-file: "2"

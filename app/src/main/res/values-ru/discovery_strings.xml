@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="discovery_title">Автоматический поиск</string>
+  <string name="discovery_help">Включите раздачу, выберите регион и подключитесь к узлу. Стартовый сервер помогает телефонам найти первые контакты без обмена кодами.</string>
+  <string name="discovery_catalog_notice">Показана найденная часть сети. Страны и свободные места заявлены и подписаны участниками; объявление не подтверждает доступность соединения.</string>
+  <string name="bootstrap_title">Стартовый сервер</string>
+  <string name="bootstrap_help">Необязательный HTTPS-адрес. Сервер обменивает временные подписанные объявления и зашифрованные сообщения сопряжения. VPN-трафик идёт через участников. Знакомые подключённые телефоны продолжают обмен каталогом после остановки сервера; для нового входа он может понадобиться снова.</string>
+  <string name="bootstrap_edit">Указать HTTPS-адрес</string>
+  <string name="bootstrap_hint">https://server.example/v1/exchange</string>
+  <string name="bootstrap_invalid">Укажите HTTPS-адрес сервера или путь /v1/exchange без логина, параметров и фрагмента.</string>
+  <string name="discovery_state">Поиск: %1$s</string>
+  <string name="discovery_not_configured">Нет стартового адреса или знакомых контактов</string>
+  <string name="discovery_starting">Ожидание раздачи и измерения скорости</string>
+  <string name="discovery_online">Обмен каталогом работает</string>
+  <string name="discovery_offline">Нет доступного контакта каталога; повторяем поиск</string>
+  <string name="discovery_pairing">Устанавливается зашифрованное соединение с участником</string>
+  <string name="discovery_hosting">Локальная стартовая точка работает на порту %1$d</string>
+  <string name="discovery_regions">Регион</string>
+  <string name="discovery_all">Все регионы</string>
+  <string name="discovery_africa">Африка</string>
+  <string name="discovery_americas">Америка</string>
+  <string name="discovery_asia">Азия</string>
+  <string name="discovery_europe">Европа</string>
+  <string name="discovery_oceania">Океания</string>
+  <string name="discovery_unknown">Регион неизвестен</string>
+  <string name="discovery_empty">В этом регионе пока не найдено узлов.</string>
+  <string name="discovery_announced">Объявлен · свободно %1$d из 3 мест. Соединение ещё не проверено.</string>
+  <string name="discovery_manual">Ручное сопряжение · резервный способ</string>
+</resources>

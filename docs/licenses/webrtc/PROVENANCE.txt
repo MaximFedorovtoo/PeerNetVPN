@@ -1,0 +1,57 @@
+WebRTC Android 144.7559.15 license provenance (collected 2026-10-21)
+
+Binary used by PeerNetVPN:
+  Maven coordinates io.github.webrtc-sdk:android:144.7559.15 (unprefixed AAR)
+  https://repo.maven.apache.org/maven2/io/github/webrtc-sdk/android/144.7559.15/android-144.7559.15.aar
+  SHA256 fc7c8d027eb33860ccbb7847988f7f942d44a92d1f575348bba6c0250cde4071
+  Size 48665974 bytes; local hash matched both MavenCentral SHA256 sidecar and
+  the publisher GitHub release asset libwebrtc.aar digest.
+
+Publisher release/source relationship:
+  https://github.com/webrtc-sdk/android/releases/tag/v144.7559.15
+  Publisher tag target commit 0c62f604c97087664e412ec04e0ec79721a263b1
+  The release explicitly identifies WebRTC source commit
+  30d5e63ae91da483e06577b5c35ee91cc5e5c3db in webrtc-sdk/webrtc.
+  https://github.com/webrtc-sdk/webrtc/commit/30d5e63ae91da483e06577b5c35ee91cc5e5c3db
+
+Copied source texts (unmodified except extracted usrsctp section):
+  LICENSE and PATENTS:
+    https://raw.githubusercontent.com/webrtc-sdk/webrtc/30d5e63ae91da483e06577b5c35ee91cc5e5c3db/LICENSE
+    https://raw.githubusercontent.com/webrtc-sdk/webrtc/30d5e63ae91da483e06577b5c35ee91cc5e5c3db/PATENTS
+  PUBLISHER_LICENSE (MIT, WebRTC SDKs 2023):
+    https://raw.githubusercontent.com/webrtc-sdk/android/v144.7559.15/LICENSE
+  PUBLISHER_WEBRTC_NOTICES.md:
+    https://raw.githubusercontent.com/webrtc-sdk/android/v144.7559.15/Licenses/WEBRTC.md
+    SHA256 d1f9382c6878ac024155fd6d44a5977329108bb8b0a01cea40e4a2f1d7de252e
+  USRSCTP_PUBLISHER_LICENSE is the verbatim usrsctp section extracted from that
+  pinned publisher collection. It is included conservatively; this is not proof
+  that the M144 native binary still links usrsctp rather than dcsctp.
+  DEPS:
+    https://raw.githubusercontent.com/webrtc-sdk/webrtc/30d5e63ae91da483e06577b5c35ee91cc5e5c3db/DEPS
+  BORINGSSL_LICENSE:
+    WebRTC DEPS explicitly pins boringssl/src to
+    b94d71f87ff943a617d77f3ff029f9a01a1ec6bc.
+    https://boringssl.googlesource.com/boringssl/+/b94d71f87ff943a617d77f3ff029f9a01a1ec6bc/LICENSE
+    This exact revision's Apache-2.0 license plus embedded third-party notices
+    supersedes assumptions based on older generic BoringSSL/OpenSSL notices.
+
+Completeness limitation:
+  The AAR itself has no LICENSE, NOTICE or PATENTS entries. Publisher release
+  assets contain AARs, without a build-generated license manifest. Although the
+  publisher collection is present at the pinned 2026 tag, GitHub file history
+  identifies its last modification as f0252bec67ad90432a77dce9af8041e3717c57ed,
+  2021-09-08. It is stale relative to M144 and must not be described as an audited
+  exhaustive notice set for this binary. Relevant modern dependency license
+  revisions and the exact native linked target graph are not fully established.
+  The upstream pinned tools_webrtc/android/build_aar.py generates LICENSE.md
+  NEXT TO the AAR through tools_webrtc/libs/generate_licenses.py, using GN desc
+  on the actual build output/targets. Obtaining that exact generated LICENSE.md
+  and GN dependency/build provenance from the publisher is the remaining task
+  for an exhaustive binary distribution notice audit. No legal-completeness
+  or verified-source-build claim is made by this collection.
+
+Runtime distribution:
+  app/src/main/assets/licenses/webrtc-NOTICES.txt contains this provenance,
+  current WebRTC/PATENTS/publisher/BoringSSL texts and the pinned publisher
+  collection. THIRD_PARTY_NOTICES.txt appends the same material without changing
+  the existing hev component notices. No cloud workflow was configured or run.
