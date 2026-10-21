@@ -25,3 +25,7 @@ keystore.properties
 __pycache__/
 .DS_Store
 Thumbs.db
+
+# Local engineering notes; public docs contain the app guide and brandbook.
+docs/*.md
+docs/superpowers/
