@@ -1,6 +1,6 @@
 # Android 向け PeerNet
 
-**[Android アプリをダウンロード](https://github.com/MaximFedorovtoo/PeerNetVPN/releases)**
+**[Android アプリをダウンロード](https://github.com/MaximFedorovtoo/PeerNetVPN/releases/latest/download/PeerNet.apk)**
 
 参加者同士でインターネット接続を共有するネットワーク。地図で利用可能なノードを探し、地域と接続するアプリを選べます。
 

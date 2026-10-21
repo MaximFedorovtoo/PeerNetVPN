@@ -1,6 +1,6 @@
 # Android 版 PeerNet
 
-**[下载 Android 应用](https://github.com/MaximFedorovtoo/PeerNetVPN/releases)**
+**[下载 Android 应用](https://github.com/MaximFedorovtoo/PeerNetVPN/releases/latest/download/PeerNet.apk)**
 
 与其他参与者共享互联网连接。在地图上查找可用节点，选择地区，并为所选应用建立连接。
 

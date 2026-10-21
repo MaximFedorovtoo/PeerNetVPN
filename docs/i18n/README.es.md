@@ -1,6 +1,6 @@
 # PeerNet para Android
 
-**[Descargar la aplicación para Android](https://github.com/MaximFedorovtoo/PeerNetVPN/releases)**
+**[Descargar la aplicación para Android](https://github.com/MaximFedorovtoo/PeerNetVPN/releases/latest/download/PeerNet.apk)**
 
 Una red para compartir conexiones a Internet entre participantes. Encuentra nodos disponibles en el mapa, elige una región y conecta las aplicaciones que quieras.
 

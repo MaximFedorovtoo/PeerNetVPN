@@ -1,6 +1,6 @@
 # PeerNet для Android
 
-**[Скачать приложение для Android](https://github.com/MaximFedorovtoo/PeerNetVPN/releases)**
+**[Скачать приложение для Android](https://github.com/MaximFedorovtoo/PeerNetVPN/releases/latest/download/PeerNet.apk)**
 
 Сеть для обмена интернет-подключением между участниками. Находите доступные узлы на карте, выбирайте регион и подключайте нужные приложения.
 

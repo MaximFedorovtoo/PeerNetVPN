@@ -2,7 +2,7 @@ $ErrorActionPreference = 'Stop'
 $projectRoot = [IO.Path]::GetFullPath((Split-Path $PSScriptRoot -Parent))
 $outputFolder = Join-Path $projectRoot 'dist'
 New-Item -ItemType Directory -Force -Path $outputFolder | Out-Null
-$apk = Join-Path $outputFolder 'PeerNet-0.5.1-debug.apk'
+$apk = Join-Path $outputFolder 'PeerNet.apk'
 $archive = Join-Path $outputFolder 'PeerNet-0.5.1-source.zip'
 Copy-Item -LiteralPath (Join-Path $projectRoot 'app/build/outputs/apk/debug/app-debug.apk') -Destination $apk
 Add-Type -AssemblyName System.IO.Compression
