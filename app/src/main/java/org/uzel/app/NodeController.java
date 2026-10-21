@@ -35,7 +35,7 @@ public final class NodeController {
         public int bootstrapPort;
         public long completedDiscoveryRefresh;
         public String publicContact="",networkDetail="",pairingState="IDLE",pairingCode="";
-        public String status="",country="",publicIp="",invitation="",advertisedHost="",errorDetail="";
+        public String status="",country="",connectedCountry="",publicIp="",invitation="",advertisedHost="",errorDetail="";
         public long sharedBytes,receivedBytes,uploadBps,shareLimitBps;
         public int clients;
         public List<Peer> peers=new ArrayList<>();
@@ -65,6 +65,7 @@ public final class NodeController {
     private volatile String networkDetail="";
     private int catalogCursor,probeCursor;
     private volatile boolean busy,vpnConnected,sharingRequested;
+    private volatile String connectedCountry="";
     private volatile String status="OFF",country="",publicIp="",advertisedHost;
     private volatile long lastMeasurement,lastRefresh,storedShared,storedReceived;
 
@@ -125,6 +126,7 @@ public final class NodeController {
         Snapshot s=new Snapshot();Node n=node;
         s.sharing=n!=null && n.isSharing();s.vpnConnected=vpnConnected;s.busy=busy;s.status=status;
         s.country=country;s.publicIp=publicIp;s.advertisedHost=advertisedHost;
+        s.connectedCountry=vpnConnected?connectedCountry:"";
         s.publicNetwork=publicNetwork;s.networkDetail=networkDetail;
         AutoDiscoveryManager autoOwner=automatic;
         s.discoveryURL=bootstrapUrl;s.discoveryState=autoOwner==null?"NOT_CONFIGURED":autoOwner.state();
@@ -302,7 +304,7 @@ public final class NodeController {
                     session=joined;socks=bridge;
                     service.startTunnel(bridge,physical.network);
                     if(!joined.isLive())throw new IOException("UNREACHABLE");
-                    vpnConnected=true;status="CONNECTED";
+                    connectedCountry=peer.country;vpnConnected=true;status="CONNECTED";
                 }
             }catch(Exception | LinkageError e){
                 if(joined!=null)joined.close();if(bridge!=null)bridge.close();

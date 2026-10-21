@@ -36,4 +36,11 @@
     <string name="ui_enable_discovery">Enable discovery</string>
     <string name="ui_all_regions">All regions</string>
     <string name="ui_limit">Sharing up to %1$s</string>
+    <string name="ui_traffic">Traffic</string>
+    <string name="ui_profile">Profile</string>
+    <string name="ui_connected_label">Connected</string>
+    <string name="ui_connected_count">%1$d of 3</string>
+    <string name="ui_sharing_on">Sharing is on</string>
+    <string name="ui_world_nodes">Nodes around the world</string>
+  <string name="ui_filter_all">All</string>
 </resources>

@@ -36,4 +36,11 @@
     <string name="ui_enable_discovery">Attiva rilevamento</string>
     <string name="ui_all_regions">Tutte le regioni</string>
     <string name="ui_limit">Condivisione fino a %1$s</string>
+    <string name="ui_traffic">Traffico</string>
+    <string name="ui_profile">Profilo</string>
+    <string name="ui_connected_label">Connesso</string>
+    <string name="ui_connected_count">%1$d di 3</string>
+    <string name="ui_sharing_on">Condivisione attiva</string>
+    <string name="ui_world_nodes">Nodi vicini e nel mondo</string>
+  <string name="ui_filter_all">Tutti</string>
 </resources>

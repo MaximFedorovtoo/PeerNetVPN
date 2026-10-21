@@ -94,9 +94,9 @@ public final class PeerArtwork extends View {
         haloShader = new RadialGradient(50, 50, 48,
                 new int[]{withAlpha(tint, 0x50), withAlpha(tint, 0x1c), withAlpha(tint, 0x00)},
                 new float[]{0f, .58f, 1f}, Shader.TileMode.CLAMP);
-        globeShader = new RadialGradient(38, 32, 70,
-                new int[]{withAlpha(tint, 0xff), withAlpha(tint, 0xc4), withAlpha(tint, 0x48)},
-                new float[]{0f, .48f, 1f}, Shader.TileMode.CLAMP);
+        globeShader = new RadialGradient(34, 29, 78,
+                new int[]{0xa82b465d, 0x9c1b3851, 0xe0081524},
+                new float[]{0f, .52f, 1f}, Shader.TileMode.CLAMP);
     }
 
     private static int withAlpha(int color, int alpha) {
@@ -173,8 +173,8 @@ public final class PeerArtwork extends View {
         canvas.drawCircle(50, 50, 36.5f, fill);
         fill.setShader(null);
 
-        // Soft shaded crescent adds depth while keeping the globe geometric and quiet.
-        shade.setColor(0x3c061321);
+        // A translucent navy crescent keeps the globe dark and gives it depth.
+        shade.setColor(0x52030d18);
         path.reset();
         path.moveTo(60, 15);
         path.cubicTo(78, 20, 89, 35, 85, 54);
@@ -184,8 +184,8 @@ public final class PeerArtwork extends View {
         path.close();
         canvas.drawPath(path, shade);
 
-        stroke.setColor(withAlpha(Color.WHITE, 0x8c));
-        stroke.setStrokeWidth(1.25f);
+        stroke.setColor(withAlpha(tint, 0x55));
+        stroke.setStrokeWidth(1.15f);
         oval.set(13.5f, 13.5f, 86.5f, 86.5f);
         canvas.drawOval(oval, stroke);
         oval.set(31, 13.5f, 69, 86.5f);
@@ -197,35 +197,43 @@ public final class PeerArtwork extends View {
         path.moveTo(20, 71); path.quadTo(50, 57, 80, 71);
         canvas.drawPath(path, stroke);
 
-        // Linked nodes sit on top of the latitude/longitude paths.
-        stroke.setColor(withAlpha(tint, 0xf0));
-        stroke.setStrokeWidth(2.5f);
+        // Fine cyan links cross the globe's latitude and longitude lines.
+        stroke.setColor(withAlpha(tint, 0xb0));
+        stroke.setStrokeWidth(1.7f);
         path.reset();
-        path.moveTo(31, 36); path.lineTo(51, 26); path.lineTo(68, 40);
-        path.lineTo(59, 63); path.lineTo(36, 67); path.lineTo(31, 36);
-        path.moveTo(31, 36); path.lineTo(59, 63);
-        path.moveTo(51, 26); path.lineTo(36, 67);
-        path.moveTo(68, 40); path.lineTo(36, 67);
+        path.moveTo(50, 18); path.lineTo(74, 34); path.lineTo(71, 63);
+        path.lineTo(50, 81); path.lineTo(28, 64); path.lineTo(26, 36);
+        path.close();
+        path.moveTo(50, 18); path.lineTo(71, 63);
+        path.moveTo(74, 34); path.lineTo(28, 64);
+        path.moveTo(26, 36); path.lineTo(71, 63);
         canvas.drawPath(path, stroke);
-        drawNode(canvas, 31, 36, 3.2f);
-        drawNode(canvas, 51, 26, 3.2f);
-        drawNode(canvas, 68, 40, 3.2f);
-        drawNode(canvas, 59, 63, 3.2f);
-        drawNode(canvas, 36, 67, 3.2f);
+        drawNode(canvas, 50, 18, 3.2f);
+        drawNode(canvas, 74, 34, 3.2f);
+        drawNode(canvas, 71, 63, 3.2f);
+        drawNode(canvas, 50, 81, 3.2f);
+        drawNode(canvas, 28, 64, 3.2f);
+        drawNode(canvas, 26, 36, 3.2f);
 
         // Small specular highlight gives the 80dp artwork a polished, dimensional finish.
-        stroke.setColor(0x99ffffff);
-        stroke.setStrokeWidth(2.4f);
+        stroke.setColor(0x80ffffff);
+        stroke.setStrokeWidth(1.8f);
         path.reset();
-        path.moveTo(31, 20); path.quadTo(40, 15, 50, 14);
+        path.moveTo(32, 22); path.quadTo(40, 17, 47, 16);
         canvas.drawPath(path, stroke);
     }
 
     private void drawNode(Canvas canvas, float x, float y, float radius) {
-        fill.setColor(NAVY);
-        canvas.drawCircle(x, y, radius + 1.5f, fill);
+        fill.setColor(withAlpha(tint, 0x18));
+        canvas.drawCircle(x, y, radius + 6.5f, fill);
+        fill.setColor(withAlpha(tint, 0x35));
+        canvas.drawCircle(x, y, radius + 3.5f, fill);
+        fill.setColor(withAlpha(tint, 0x70));
+        canvas.drawCircle(x, y, radius + 1.4f, fill);
         fill.setColor(tint);
         canvas.drawCircle(x, y, radius, fill);
+        fill.setColor(0xaaffffff);
+        canvas.drawCircle(x - radius * .24f, y - radius * .24f, radius * .34f, fill);
     }
 
     private void drawSmallIcon(Canvas canvas) {
@@ -327,16 +335,19 @@ public final class PeerArtwork extends View {
 
     private void drawOffline(Canvas canvas, float cx, float cy, float scale) {
         stroke.setColor(AMBER);
-        stroke.setStrokeWidth(6f);
+        stroke.setStrokeWidth(5.2f * scale);
         stroke.setStyle(Paint.Style.STROKE);
-        canvas.drawCircle(cx, cy - 2 * scale, 25 * scale, stroke);
-        path.reset();
-        path.moveTo(cx - 18 * scale, cy - 20 * scale);
-        path.lineTo(cx + 18 * scale, cy + 16 * scale);
-        canvas.drawPath(path, stroke);
+        arc.set(cx - 31 * scale, cy - 34 * scale, cx + 31 * scale, cy + 28 * scale);
+        canvas.drawArc(arc, 225, 90, false, stroke);
+        arc.set(cx - 21 * scale, cy - 24 * scale, cx + 21 * scale, cy + 18 * scale);
+        canvas.drawArc(arc, 225, 90, false, stroke);
+        arc.set(cx - 11 * scale, cy - 14 * scale, cx + 11 * scale, cy + 8 * scale);
+        canvas.drawArc(arc, 225, 90, false, stroke);
         fill.setColor(AMBER);
-        canvas.drawCircle(cx - 25 * scale, cy + 27 * scale, 3.5f * scale, fill);
         canvas.drawCircle(cx, cy + 27 * scale, 3.5f * scale, fill);
-        canvas.drawCircle(cx + 25 * scale, cy + 27 * scale, 3.5f * scale, fill);
+        path.reset();
+        path.moveTo(cx - 25 * scale, cy - 27 * scale);
+        path.lineTo(cx + 25 * scale, cy + 22 * scale);
+        canvas.drawPath(path, stroke);
     }
 }

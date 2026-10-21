@@ -36,4 +36,11 @@
     <string name="ui_enable_discovery">検出機能をオンにする</string>
     <string name="ui_all_regions">すべての地域</string>
     <string name="ui_limit">共有上限：%1$s</string>
+    <string name="ui_traffic">通信量</string>
+    <string name="ui_profile">プロフィール</string>
+    <string name="ui_connected_label">接続済み</string>
+    <string name="ui_connected_count">3件中%1$d件</string>
+    <string name="ui_sharing_on">ネット共有中</string>
+    <string name="ui_world_nodes">近くと世界中のノード</string>
+  <string name="ui_filter_all">すべて</string>
 </resources>

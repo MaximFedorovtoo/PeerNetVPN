@@ -2,8 +2,8 @@ $ErrorActionPreference = 'Stop'
 $projectRoot = [IO.Path]::GetFullPath((Split-Path $PSScriptRoot -Parent))
 $outputFolder = Join-Path $projectRoot 'dist'
 New-Item -ItemType Directory -Force -Path $outputFolder | Out-Null
-$apk = Join-Path $outputFolder 'PeerNet-0.5.0-debug.apk'
-$archive = Join-Path $outputFolder 'PeerNet-0.5.0-source.zip'
+$apk = Join-Path $outputFolder 'PeerNet-0.5.1-debug.apk'
+$archive = Join-Path $outputFolder 'PeerNet-0.5.1-source.zip'
 Copy-Item -LiteralPath (Join-Path $projectRoot 'app/build/outputs/apk/debug/app-debug.apk') -Destination $apk
 Add-Type -AssemblyName System.IO.Compression
 Add-Type -AssemblyName System.IO.Compression.FileSystem
@@ -11,8 +11,8 @@ $stream = [IO.File]::Open($archive,[IO.FileMode]::Create)
 $zip = [IO.Compression.ZipArchive]::new($stream,[IO.Compression.ZipArchiveMode]::Create)
 try {
     # Explicit source roots only; downloaded SDK/JDK/AARs and local credentials are excluded.
-    $sources = @('AGENTS.md','README.md','THIRD_PARTY_NOTICES.txt','.gitignore','.gitattributes','build.gradle','settings.gradle','gradle.properties')
-    foreach($sourceRoot in @('core/src','app/src','routing-probe-vpn/src','routing-probe-direct/src','docs','tools')) {
+    $sources = @('README.md','THIRD_PARTY_NOTICES.txt','.gitignore','.gitattributes','build.gradle','settings.gradle','gradle.properties','docs/brandbook.html')
+    foreach($sourceRoot in @('core/src','app/src','routing-probe-vpn/src','routing-probe-direct/src','docs/i18n','docs/licenses','tools')) {
         Get-ChildItem -LiteralPath (Join-Path $projectRoot $sourceRoot) -Recurse -File | ForEach-Object {
             $sources += $_.FullName.Substring($projectRoot.Length+1)
         }
@@ -26,6 +26,6 @@ try {
 $hashes = @($apk,$archive) | ForEach-Object {
     '{0}  {1}' -f (Get-FileHash -LiteralPath $_ -Algorithm SHA256).Hash.ToLowerInvariant(),[IO.Path]::GetFileName($_)
 }
-[IO.File]::WriteAllLines((Join-Path $outputFolder 'PeerNet-0.5.0-SHA256SUMS.txt'),$hashes,[Text.UTF8Encoding]::new($false))
+[IO.File]::WriteAllLines((Join-Path $outputFolder 'PeerNet-0.5.1-SHA256SUMS.txt'),$hashes,[Text.UTF8Encoding]::new($false))
 $hashes
 

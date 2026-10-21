@@ -36,4 +36,11 @@
     <string name="ui_enable_discovery">Activar detección</string>
     <string name="ui_all_regions">Todas las regiones</string>
     <string name="ui_limit">Compartir hasta %1$s</string>
+    <string name="ui_traffic">Tráfico</string>
+    <string name="ui_profile">Perfil</string>
+    <string name="ui_connected_label">Conectado</string>
+    <string name="ui_connected_count">%1$d de 3</string>
+    <string name="ui_sharing_on">Compartición activada</string>
+    <string name="ui_world_nodes">Nodos cercanos y de todo el mundo</string>
+  <string name="ui_filter_all">Todos</string>
 </resources>

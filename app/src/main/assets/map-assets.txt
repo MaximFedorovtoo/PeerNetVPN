@@ -1,0 +1,25 @@
+Made with Natural Earth.
+
+world-countries-110m.bin contains 176 country geometries (Antarctica omitted)
+from Natural Earth 1:110m Admin 0 Countries, primary maintainer repository:
+https://github.com/nvkelso/natural-earth-vector
+Pinned commit: ca96624a56bd078437bca8184e78163e5039ad19
+Source:
+https://raw.githubusercontent.com/nvkelso/natural-earth-vector/ca96624a56bd078437bca8184e78163e5039ad19/geojson/ne_110m_admin_0_countries.geojson
+Downloaded: 2026-10-21
+Source SHA256:6866C877D39CBA9C357620878839B336D569F8C662D3CFAB4CB1DBE2D39C977F
+License: public domain. Verified primary terms:
+https://www.naturalearthdata.com/about/terms-of-use/
+https://github.com/nvkelso/natural-earth-vector/blob/ca96624a56bd078437bca8184e78163e5039ad19/LICENSE.md
+
+Adaptation: country properties removed except ISO_A2_EH; all rings retained;
+Antarctica omitted. Longitude/latitude projected with
+x = 500 + longitude * (460/180) * (0.86 + 0.14*cos(latitude radians));
+y = 254 - latitude*2.6. Coordinates quantized to 1/16 map unit.
+Binary format (big-endian): ASCII PNM1; uint16 country count; each country:
+2 ASCII ISO-A2 characters, uint16 ring count; each ring: uint16 point count,
+then point count pairs of uint16 x16/y16 coordinates. 9,993 coordinate pairs.
+Country codes are grouped at runtime using the app's existing PeerRegions.
+Geographic shapes and boundaries provide visual context only. Counts reflect
+reported regions; the map does not imply GPS locations or verified countries.
+No remote tiles, API key, runtime requests, or external rendering library.

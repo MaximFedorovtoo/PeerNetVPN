@@ -50,7 +50,7 @@ public class MainActivity extends Activity {
     private NetworkMapView networkMap;
     private TextView searchTitle,searchHint,mapCount;
     private ProgressBar searchProgress;
-    private Button searchAction,allRegions;
+    private Button searchAction,allRegions,searchDetails;
     private long searchStarted,retryCycle=-1;
     private String observedDiscovery="";
     private LinearLayout regionChips;
@@ -189,11 +189,10 @@ public class MainActivity extends Activity {
     }
     private int dp(float value) { return Math.round(value*getResources().getDisplayMetrics().density); }
     private LinearLayout column() { LinearLayout l=new LinearLayout(this); l.setOrientation(LinearLayout.VERTICAL); return l; }
-    private TextView label(String value,int size,int color,boolean bold) { TextView t=new TextView(this); t.setText(value); t.setTextSize(size); t.setTextColor(color); if(bold)t.setTypeface(Typeface.DEFAULT,Typeface.BOLD); t.setPadding(0,dp(4),0,dp(4)); return t; }
+    private TextView label(String value,int size,int color,boolean bold) { TextView t=new TextView(this); t.setText(value); t.setTextSize(size); t.setTextColor(color);t.setTypeface(Typeface.create("sans-serif",bold?Typeface.BOLD:Typeface.NORMAL));t.setIncludeFontPadding(false); t.setPadding(0,dp(4),0,dp(4)); return t; }
     private GradientDrawable background(int color,int radius) { GradientDrawable d=new GradientDrawable(); d.setColor(color); d.setCornerRadius(dp(radius)); return d; }
-    private GradientDrawable raised(boolean primary,int radius) {
-        GradientDrawable d=new GradientDrawable(GradientDrawable.Orientation.TL_BR,primary?new int[]{0xff3efff4,0xff00cde4}:new int[]{0xff18354b,0xff051b2d});
-        d.setCornerRadius(dp(radius));d.setStroke(dp(0.7f),primary?0xff8bfff6:0xff43627a);return d;
+    private android.graphics.drawable.Drawable raised(boolean primary,int radius) {
+        return new DepthSurface(getResources().getDisplayMetrics().density,radius,primary);
     }
     private LinearLayout card() { LinearLayout c=column(); c.setPadding(dp(12),dp(10),dp(12),dp(10)); c.setBackground(raised(false,20));c.setElevation(dp(5)); LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,-2); p.bottomMargin=dp(10);p.topMargin=dp(2); content.addView(c,p); return c; }
     private Button button(LinearLayout parent,String text,boolean primary,Runnable action) { Button b=new Button(this); b.setText(text); b.setTextSize(14);b.setTypeface(Typeface.DEFAULT,Typeface.BOLD); b.setAllCaps(false); b.setTextColor(new ColorStateList(new int[][]{new int[]{-android.R.attr.state_enabled},new int[]{}},new int[]{0xff8296a9,primary?BG:NAVY})); b.setBackground(new RippleDrawable(ColorStateList.valueOf(0x407fffff),raised(primary,15),null)); b.setElevation(dp(primary?6:3));b.setPadding(dp(10),dp(8),dp(10),dp(8));b.setMinWidth(0);b.setMinimumWidth(0); b.setMinHeight(dp(50)); LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,-2); p.topMargin=dp(8); parent.addView(b,p); b.setOnClickListener(v->action.run()); return b; }
@@ -215,43 +214,56 @@ public class MainActivity extends Activity {
         selectedTab=tab; content.removeAllViews(); nav.removeAllViews(); peerSignature="";
         status=address=shareValue=receivedValue=rateValue=clientsValue=limitValue=detail=null; publicSwitch=null; publicDetail=null; peers=null; sharingButton=vpnButton=measureButton=null;
         pairingDetail=null;pairingCreate=pairingImport=pairingShare=null;discoveryDetail=bootstrapAddress=null;
-        networkMap=null;searchTitle=searchHint=mapCount=null;searchProgress=null;searchAction=allRegions=null;regionChips=null;
-        String[] tabs={"home","nodes","statistics","settings"}; String[] symbols={"⌂","◎","▥","⚙"};
-        for(int i=0;i<tabs.length;i++) { final int index=i;String title=i==1?getString(R.string.ui_map_tab):s(tabs[i]); TextView item=label(symbols[i]+"\n"+title,12,i==tab?GREEN:MUTED,i==tab); item.setGravity(Gravity.CENTER); item.setMinHeight(dp(56)); item.setContentDescription(title); item.setSelected(i==tab);if(i==tab)item.setBackground(background(SURFACE,16)); nav.addView(item,new LinearLayout.LayoutParams(0,-2,1)); item.setOnClickListener(v->showTab(index)); }
-        if(tab!=0)content.addView(label(tab==1?getString(R.string.ui_map):s(tabs[tab]),27,NAVY,true));
+        networkMap=null;searchTitle=searchHint=mapCount=null;searchProgress=null;searchAction=allRegions=searchDetails=null;regionChips=null;searchPanel=null;filterStrip=null;searchArtwork=null;
+        String[] tabs={"home","nodes","statistics","settings"}; String[] symbols={"home","map","traffic","profile"};
+        for(int i=0;i<tabs.length;i++) { final int index=i;String title=switch(i){case 1->getString(R.string.ui_map_tab);case 2->getString(R.string.ui_traffic);case 3->getString(R.string.ui_profile);default->s(tabs[i]);};LinearLayout item=column();item.setGravity(Gravity.CENTER);int tint=i==tab?GREEN:MUTED;
+            item.addView(new PeerArtwork(this,symbols[i],tint),new LinearLayout.LayoutParams(dp(27),dp(27)));TextView caption=label(title,10,tint,i==tab);caption.setGravity(Gravity.CENTER);item.addView(caption);item.setMinimumHeight(dp(58));item.setContentDescription(title);item.setSelected(i==tab);item.setFocusable(true);nav.addView(item,new LinearLayout.LayoutParams(0,-2,1));item.setOnClickListener(v->showTab(index)); }
+        buildHeader(tab);
         if(tab==0) home(); else if(tab==1) nodes(); else if(tab==2) statistics(); else settings();
+        pageScroll.scrollTo(0,0);
         refresh();
     }
     private void home() {
-        LinearLayout c=card(); c.addView(label(s("connection"),13,MUTED,false)); status=label("",24,NAVY,true); c.addView(status); address=label("",14,MUTED,false); c.addView(address);
-        vpnButton=button(c,s("choose_node"),true,()->{if(controller.snapshot().vpnConnected)controller.disconnect();else showTab(1);});
-        LinearLayout sharing=card(); sharing.addView(label(s("your_node"),20,NAVY,true));
-        clientsValue=label("",17,NAVY,true); sharing.addView(clientsValue); limitValue=label("",15,MUTED,false); sharing.addView(limitValue);
-        sharingButton=button(sharing,s("start_sharing"),true,()->{NodeController.Snapshot x=controller.snapshot(); if(x.sharing)controller.stopSharing();else { requestNotifications(); controller.startSharing(); } refresh();});
-        LinearLayout map=card();map.addView(label(getString(R.string.ui_map),20,NAVY,true));mapCount=label("",14,MUTED,false);map.addView(mapCount);
+        LinearLayout c=card();LinearLayout hero=new LinearLayout(this);hero.setGravity(Gravity.CENTER_VERTICAL);
+        hero.addView(new PeerArtwork(this,"network",GREEN),new LinearLayout.LayoutParams(dp(84),dp(84)));
+        LinearLayout summary=column();LinearLayout.LayoutParams sp=new LinearLayout.LayoutParams(0,-2,1);sp.setMarginStart(dp(10));hero.addView(summary,sp);status=label("",21,NAVY,true);summary.addView(status);address=label("",14,MUTED,false);summary.addView(address);c.addView(hero);
+        LinearLayout actions=new LinearLayout(this);c.addView(actions);
+        vpnButton=button(actions,s("choose_node"),false,()->{if(controller.snapshot().vpnConnected)controller.disconnect();else showTab(1);});
+        sharingButton=button(actions,getString(R.string.ui_share),true,()->{NodeController.Snapshot x=controller.snapshot();if(x.sharing)controller.stopSharing();else{requestNotifications();controller.startSharing();}refresh();});
+        for(int i=0;i<2;i++){LinearLayout.LayoutParams bp=new LinearLayout.LayoutParams(0,-2,1);bp.topMargin=dp(4);if(i==0)bp.setMarginEnd(dp(8));actions.getChildAt(i).setLayoutParams(bp);}
+        LinearLayout stats=card();stats.setOrientation(LinearLayout.HORIZONTAL);
+        receivedValue=statCell(stats,getString(R.string.ui_received));shareValue=statCell(stats,getString(R.string.ui_sent));clientsValue=statCell(stats,getString(R.string.ui_connected_label));
+        LinearLayout map=card();LinearLayout mh=new LinearLayout(this);mh.setGravity(Gravity.CENTER_VERTICAL);mh.addView(label(getString(R.string.ui_world_nodes),16,NAVY,true),new LinearLayout.LayoutParams(0,-2,1));mh.addView(new PeerArtwork(this,"chevron",MUTED),new LinearLayout.LayoutParams(dp(18),dp(18)));map.addView(mh);
         networkMap=new NetworkMapView(this);map.addView(networkMap,new LinearLayout.LayoutParams(-1,dp(175)));networkMap.setOnRegionSelectedListener(region->{selectedRegion=region;showTab(1);});
         button(map,getString(R.string.ui_open_map),false,()->showTab(1));
-        LinearLayout apps=card();apps.addView(label(getString(R.string.ui_apps),20,NAVY,true));
-        LinearLayout icons=new LinearLayout(this);for(String pkg:AppSelection.validPackages(this)){if(icons.getChildCount()>=5)break;try{ImageView icon=new ImageView(this);icon.setImageDrawable(getPackageManager().getApplicationIcon(pkg));icon.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);LinearLayout.LayoutParams ip=new LinearLayout.LayoutParams(dp(36),dp(36));ip.setMarginEnd(dp(10));icons.addView(icon,ip);}catch(android.content.pm.PackageManager.NameNotFoundException ignored){}}
-        apps.addView(icons);button(apps,getString(R.string.ui_choose_apps),false,this::chooseApps);
+        LinearLayout apps=card();LinearLayout ah=new LinearLayout(this);ah.setGravity(Gravity.CENTER_VERTICAL);ah.addView(label(getString(R.string.ui_apps),16,NAVY,true),new LinearLayout.LayoutParams(0,-2,1));ah.addView(new PeerArtwork(this,"chevron",MUTED),new LinearLayout.LayoutParams(dp(20),dp(20)));apps.addView(ah);apps.setOnClickListener(v->chooseApps());apps.setFocusable(true);apps.setContentDescription(getString(R.string.ui_choose_apps));
+        LinearLayout icons=new LinearLayout(this);for(String pkg:AppSelection.validPackages(this)){if(icons.getChildCount()>=5)break;try{FrameLayout tile=new FrameLayout(this);tile.setBackground(raised(false,14));ImageView icon=new ImageView(this);icon.setImageDrawable(getPackageManager().getApplicationIcon(pkg));icon.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);tile.addView(icon,new FrameLayout.LayoutParams(dp(35),dp(35),Gravity.CENTER));LinearLayout.LayoutParams ip=new LinearLayout.LayoutParams(dp(60),dp(54));ip.setMarginEnd(dp(10));icons.addView(tile,ip);}catch(android.content.pm.PackageManager.NameNotFoundException ignored){}}
+        if(icons.getChildCount()==0){icons.addView(new PeerArtwork(this,"apps",GREEN),new LinearLayout.LayoutParams(dp(38),dp(48)));TextView choose=label(getString(R.string.ui_choose_apps),14,MUTED,false);choose.setGravity(Gravity.CENTER_VERTICAL);icons.addView(choose,new LinearLayout.LayoutParams(-2,dp(48)));}
+        apps.addView(icons);
         detail=label("",14,0xffff8e9a,false); content.addView(detail);
+    }
+    private TextView statCell(LinearLayout row,String title) {
+        if(row.getChildCount()>0){View line=new View(this);line.setBackgroundColor(0xff28435a);LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(dp(1),dp(42));lp.gravity=Gravity.CENTER_VERTICAL;row.addView(line,lp);}
+        LinearLayout cell=column();cell.setPadding(dp(6),0,dp(3),0);cell.addView(label(title,11,MUTED,false));TextView value=label("",18,NAVY,true);cell.addView(value);row.addView(cell,new LinearLayout.LayoutParams(0,-2,1));return value;
     }
     private void nodes() {
         if(searchStarted==0)searchStarted=SystemClock.elapsedRealtime();
-        LinearLayout map=card();mapCount=label("",17,NAVY,true);map.addView(mapCount);
-        networkMap=new NetworkMapView(this);map.addView(networkMap,new LinearLayout.LayoutParams(-1,dp(205)));
+        mapCount=label("",14,MUTED,false);mapCount.setPadding(dp(16),0,0,0);content.addView(mapCount);
+        networkMap=new NetworkMapView(this);content.addView(networkMap,new LinearLayout.LayoutParams(-1,dp(265)));
         networkMap.setOnRegionSelectedListener(region->{selectedRegion=region;showTab(1);});
-        map.addView(label(getString(R.string.ui_map_hint),12,MUTED,false));
-        HorizontalScrollView filter=new HorizontalScrollView(this);filter.setHorizontalScrollBarEnabled(false);regionChips=new LinearLayout(this);filter.addView(regionChips);content.addView(filter);
+        HorizontalScrollView filter=new HorizontalScrollView(this);filterStrip=filter;filter.setHorizontalScrollBarEnabled(false);regionChips=new LinearLayout(this);filter.addView(regionChips);content.addView(filter);
         int[] names={R.string.discovery_all,R.string.discovery_africa,R.string.discovery_americas,R.string.discovery_asia,R.string.discovery_europe,R.string.discovery_oceania,R.string.discovery_unknown};
         selectedRegion=Math.max(0,Math.min(selectedRegion,names.length-1));
-        for(int i=0;i<names.length;i++){final int region=i;Button chip=button(regionChips,getString(names[i]),i==selectedRegion,()->{selectedRegion=region;showTab(1);});LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(-2,-2);cp.setMarginEnd(dp(8));cp.bottomMargin=dp(14);chip.setLayoutParams(cp);chip.setSelected(i==selectedRegion);}
-        LinearLayout search=card();LinearLayout searchRow=new LinearLayout(this);searchRow.setGravity(Gravity.CENTER_VERTICAL);
-        searchProgress=new ProgressBar(this);searchProgress.setIndeterminateTintList(ColorStateList.valueOf(GREEN));LinearLayout.LayoutParams pp=new LinearLayout.LayoutParams(dp(26),dp(26));pp.setMarginEnd(dp(12));searchRow.addView(searchProgress,pp);
-        searchTitle=label("",18,NAVY,true);searchRow.addView(searchTitle,new LinearLayout.LayoutParams(0,-2,1));search.addView(searchRow);
-        searchHint=label("",14,MUTED,false);search.addView(searchHint);
-        searchAction=button(search,getString(R.string.ui_retry),false,this::searchAction);
+        int[] order={0,4,3,2,1,5,6};for(int i:order){final int region=i;Button chip=button(regionChips,i==0?getString(R.string.ui_filter_all):getString(names[i]),i==selectedRegion,()->{selectedRegion=region;showTab(1);});LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(dp(106),-2);cp.setMarginEnd(dp(8));cp.bottomMargin=dp(12);chip.setLayoutParams(cp);chip.setSelected(i==selectedRegion);if(i==selectedRegion)filter.post(()->filter.smoothScrollTo(Math.max(0,chip.getLeft()-dp(8)),0));}
+        LinearLayout search=column();searchPanel=search;search.setGravity(Gravity.CENTER_HORIZONTAL);search.setPadding(dp(8),0,dp(8),dp(16));content.addView(search);
+        FrameLayout symbol=new FrameLayout(this);search.addView(symbol,new LinearLayout.LayoutParams(dp(110),dp(110)));
+        searchArtwork=new PeerArtwork(this,"search",MUTED);symbol.addView(searchArtwork,new FrameLayout.LayoutParams(-1,-1));
+        searchProgress=new ProgressBar(this);searchProgress.setIndeterminateTintList(ColorStateList.valueOf(GREEN));symbol.addView(searchProgress,new FrameLayout.LayoutParams(dp(84),dp(84),Gravity.CENTER));
+        searchTitle=label("",24,NAVY,true);searchTitle.setGravity(Gravity.CENTER);search.addView(searchTitle,new LinearLayout.LayoutParams(-1,-2));
+        searchHint=label("",15,MUTED,false);searchHint.setGravity(Gravity.CENTER);search.addView(searchHint,new LinearLayout.LayoutParams(-1,-2));
+        searchAction=button(search,getString(R.string.ui_retry),true,this::searchAction);
         allRegions=button(search,getString(R.string.ui_all_regions),false,()->{selectedRegion=PeerRegions.ALL;showTab(1);});
+        searchDetails=button(search,getString(R.string.ui_more),false,()->{advanced=true;showTab(3);});searchDetails.setBackground(null);searchDetails.setElevation(0);searchDetails.setTextColor(GREEN);
         detail=label("",14,0xffff8e9a,false);content.addView(detail);
         peers=column();content.addView(peers);
     }
@@ -308,6 +320,9 @@ public class MainActivity extends Activity {
     }
     private void refresh() {
         if(controller==null)return; NodeController.Snapshot x=controller.snapshot();
+        renderSnapshot(x);
+    }
+    private void renderSnapshot(NodeController.Snapshot x) {
         if(status!=null)status.setText(x.vpnConnected?getString(R.string.ui_connected):"OFF".equals(x.status)?getString(R.string.ui_disconnected):localStatus(x.status));
         updateDiscovery(x);
         if(discoveryDetail!=null){String value=getString(R.string.discovery_state,getString(discoveryStateResource(x.discoveryState)));if(x.bootstrapHosting)value+="\n"+getString(R.string.discovery_hosting,x.bootstrapPort);discoveryDetail.setText(value);}
@@ -327,10 +342,10 @@ public class MainActivity extends Activity {
         if(pairingCreate!=null)pairingCreate.setEnabled(x.sharing&&!x.busy);
         if(pairingImport!=null)pairingImport.setEnabled(x.sharing&&!x.busy);
         if(pairingShare!=null)pairingShare.setEnabled(!x.pairingCode.isEmpty());
-        if(address!=null){address.setText(x.vpnConnected||empty(x.country)?"":country(x.country));address.setVisibility(address.length()==0?View.GONE:View.VISIBLE);}
-        if(clientsValue!=null)clientsValue.setText(s("clients",x.clients));
+        if(address!=null){address.setText(x.vpnConnected&&!empty(x.connectedCountry)?flag(x.connectedCountry)+"  "+country(x.connectedCountry):"");address.setVisibility(address.length()==0?View.GONE:View.VISIBLE);}
+        if(clientsValue!=null)clientsValue.setText(getString(R.string.ui_connected_count,x.clients));
         if(limitValue!=null){limitValue.setText(x.shareLimitBps>0?getString(R.string.ui_limit,speed(x.shareLimitBps)):"");limitValue.setVisibility(x.shareLimitBps>0?View.VISIBLE:View.GONE);}
-        if(sharingButton!=null){sharingButton.setText(getString(x.sharing?R.string.ui_stop_share:R.string.ui_share));sharingButton.setEnabled(x.sharing||!x.busy);}
+        if(sharingButton!=null){sharingButton.setText(getString(x.sharing?R.string.ui_sharing_on:R.string.ui_share));sharingButton.setContentDescription(getString(x.sharing?R.string.ui_stop_share:R.string.ui_share));sharingButton.setEnabled(x.sharing||!x.busy);}
         if(vpnButton!=null){vpnButton.setText(s(x.vpnConnected?"disconnect":"choose_node"));vpnButton.setEnabled(!x.busy);}
         if(shareValue!=null)shareValue.setText(Formatter.formatFileSize(this,x.sharedBytes));
         if(receivedValue!=null)receivedValue.setText(Formatter.formatFileSize(this,x.receivedBytes));
@@ -348,19 +363,24 @@ public class MainActivity extends Activity {
         if(retryCycle>=0&&x.completedDiscoveryRefresh>=retryCycle)retryCycle=-1;
         int[] counts=new int[7];for(NodeController.Peer p:x.peers)if(visiblePeer(p)){counts[0]++;counts[PeerRegions.group(p.country)]++;}
         if(networkMap!=null)networkMap.setData(counts,selectedTab==1?selectedRegion:0);
-        if(mapCount!=null)mapCount.setText(getString(R.string.ui_found,counts[0]));
+        if(mapCount!=null){mapCount.setText(getString(R.string.ui_found,counts[0]));mapCount.setVisibility(counts[0]>0?View.VISIBLE:View.GONE);}
         if(searchTitle==null)return;
         int count=counts[selectedRegion];
         boolean preparing=x.busy&&("STARTING".equals(x.status)||"MEASURING".equals(x.status));
         SearchPresentation.State state=SearchPresentation.resolve(x.sharing,preparing,x.discoveryState,count,now-searchStarted,retryCycle>=0);
+        searchPanel.setVisibility(state==SearchPresentation.State.FOUND?View.GONE:View.VISIBLE);
+        filterStrip.setVisibility(counts[0]>0?View.VISIBLE:View.GONE);
         int title=switch(state){case SHARE_REQUIRED->R.string.ui_share_to_search;case PREPARING->R.string.ui_preparing;case SEARCHING->R.string.ui_searching;case SLOW->R.string.ui_search_slow;case FOUND->R.string.ui_found;case EMPTY->selectedRegion==0?R.string.ui_empty:R.string.ui_region_empty;case OFFLINE->R.string.ui_catalog_offline;case SETUP->R.string.ui_setup;};
         searchTitle.setText(state==SearchPresentation.State.FOUND?getString(title,count):getString(title));
         searchProgress.setVisibility(state==SearchPresentation.State.SEARCHING||state==SearchPresentation.State.PREPARING?View.VISIBLE:View.GONE);
+        boolean loading=state==SearchPresentation.State.SEARCHING||state==SearchPresentation.State.PREPARING;
+        searchArtwork.setVisibility(loading?View.INVISIBLE:View.VISIBLE);searchArtwork.setKind(state==SearchPresentation.State.OFFLINE?"offline":state==SearchPresentation.State.SHARE_REQUIRED?"share":"search");searchArtwork.setTint(state==SearchPresentation.State.OFFLINE?0xffffc266:GREEN);
         boolean hint=state==SearchPresentation.State.EMPTY||state==SearchPresentation.State.OFFLINE||state==SearchPresentation.State.SLOW;
         searchHint.setText(getString(state==SearchPresentation.State.EMPTY?R.string.ui_empty_hint:R.string.ui_retry_hint));searchHint.setVisibility(hint?View.VISIBLE:View.GONE);
         searchAction.setText(getString(state==SearchPresentation.State.SHARE_REQUIRED?R.string.ui_share:state==SearchPresentation.State.SETUP?R.string.ui_advanced:R.string.ui_retry));
         searchAction.setEnabled(!x.busy&&state!=SearchPresentation.State.SEARCHING&&state!=SearchPresentation.State.PREPARING);
         allRegions.setVisibility(selectedRegion!=0?View.VISIBLE:View.GONE);
+        searchDetails.setVisibility(state==SearchPresentation.State.OFFLINE||state==SearchPresentation.State.SETUP||state==SearchPresentation.State.SLOW?View.VISIBLE:View.GONE);
     }
     private void searchAction() {
         NodeController.Snapshot x=controller.snapshot();
@@ -372,6 +392,7 @@ public class MainActivity extends Activity {
     }
     private String localStatus(String code) { return s("status_"+(code==null?"off":code.toLowerCase(Locale.ROOT))); }
     private String country(String code){if(empty(code))return s("unknown_country");return new Locale("",code).getDisplayCountry(getResources().getConfiguration().getLocales().get(0));}
+    private String flag(String code){if(code==null||!code.matches("[A-Za-z]{2}"))return "";String normalized=code.toUpperCase(Locale.ROOT);return new String(Character.toChars(0x1f1e6+normalized.charAt(0)-'A'))+new String(Character.toChars(0x1f1e6+normalized.charAt(1)-'A'));}
     private String speed(long bytes){return getString(R.string.speed_mbps,Math.max(0,bytes)*8.0/1_000_000.0);}
     private boolean empty(String text){return text==null||text.isEmpty();}
     private static int discoveryStateResource(String state){
@@ -394,16 +415,18 @@ public class MainActivity extends Activity {
             if(!visiblePeer(p))continue;
             if(selectedRegion!=PeerRegions.ALL&&PeerRegions.group(p.country)!=selectedRegion)continue;
             count++;
-            LinearLayout c=column();c.setBackground(raised(false,22));c.setElevation(dp(3));c.setPadding(dp(18),dp(14),dp(18),dp(18));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.bottomMargin=dp(14);peers.addView(c,lp);
-            c.addView(label(country(p.country),20,NAVY,true));
+            LinearLayout c=column();c.setBackground(raised(false,20));c.setElevation(dp(3));c.setPadding(dp(12),dp(10),dp(12),dp(10));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.bottomMargin=dp(10);peers.addView(c,lp);
+            LinearLayout row=new LinearLayout(this);row.setGravity(Gravity.CENTER_VERTICAL);c.addView(row);
+            TextView flag=label(flag(p.country),30,NAVY,false);row.addView(flag,new LinearLayout.LayoutParams(dp(46),dp(48)));
+            LinearLayout info=column();LinearLayout.LayoutParams ip=new LinearLayout.LayoutParams(0,-2,1);ip.setMarginEnd(dp(8));row.addView(info,ip);info.addView(label(country(p.country),16,NAVY,true));
             boolean announced=p.autoDiscovered&&p.announced;
             int slots=p.reachable?Math.max(0,3-p.clients):Math.max(0,Math.min(3,p.freeSlots));
-            c.addView(label(getString(R.string.ui_slots,slots),14,MUTED,false));
-            if(p.upload>0)c.addView(label(speed(p.upload),15,NAVY,true));
+            info.addView(label(getString(R.string.ui_slots,slots),12,MUTED,false));
             String state=getString(p.reachable?R.string.ui_verified:R.string.ui_announced);
-            c.addView(label(state,14,p.reachable?GREEN:MUTED,false));
             boolean canConnect=SearchPresentation.canConnect(p.reachable,p.paired,announced,slots);
-            Button connect=button(c,getString(canConnect?R.string.ui_connect:R.string.ui_full),true,()->connect(p.id));connect.setEnabled(canConnect&&x.sharing&&!x.busy&&!x.vpnConnected);
+            boolean large=getResources().getConfiguration().fontScale>1.6f;
+            Button connect=button(large?c:row,getString(canConnect?R.string.ui_connect:R.string.ui_full),true,()->connect(p.id));if(!large){connect.setLayoutParams(new LinearLayout.LayoutParams(dp(124),dp(54)));connect.setMaxLines(1);connect.setAutoSizeTextTypeUniformWithConfiguration(10,14,1,android.util.TypedValue.COMPLEX_UNIT_SP);}connect.setEnabled(canConnect&&x.sharing&&!x.busy&&!x.vpnConnected);
+            TextView meta=label(state,11,p.reachable?GREEN:MUTED,false);c.addView(meta);c.setContentDescription(country(p.country)+", "+state+", "+getString(R.string.ui_slots,slots));
         }
     }
     private void connect(String id){if(!hasSelectedApps())return;Intent prepare=VpnService.prepare(this);pendingPeer=id;if(prepare!=null)startActivityForResult(prepare,71);else{controller.connect(id);pendingPeer=null;showTab(0);}}
