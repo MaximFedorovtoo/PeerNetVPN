@@ -74,7 +74,7 @@ public final class ProbeActivity extends Activity {
                 try{report.put("error",failure.getClass().getSimpleName()+": "+String.valueOf(failure.getMessage()));}catch(Exception ignored){}
             }finally{if(connection!=null)connection.disconnect();}
             try{report.put("elapsedMs",(System.nanoTime()-started)/1_000_000);}catch(Exception ignored){}
-            String output=report.toString();Log.i("PeerNetProbe",output);
+            String output=report.toString();Log.i("UzelioProbe",output);
             runOnUiThread(()->{result.setText(output);run.setEnabled(true);});
         });
     }

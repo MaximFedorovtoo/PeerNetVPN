@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="sharing_rate_title">共有速度</string>
+    <string name="sharing_rate_unlimited">制限なし</string>
+    <string name="sharing_rate_manual">速度を指定</string>
+    <string name="sharing_rate_unit">Mbit/s</string>
+    <string name="sharing_rate_effective">上限：%1$s Mbit/s</string>
+    <string name="sharing_rate_minimum">最低：%1$s Mbit/s</string>
+    <string name="sharing_rate_minimum_unknown">速度測定後に最低値を表示します。</string>
+    <string name="sharing_rate_requested">設定値：%1$s Mbit/s</string>
+    <string name="sharing_rate_edit">速度を変更</string>
+    <string name="sharing_rate_help">制限なし、または測定したアップロード速度の3分の1以上を指定します。</string>
+    <string name="sharing_rate_invalid">%1$s～1000000 Mbit/sの正の速度を入力してください。</string>
+</resources>

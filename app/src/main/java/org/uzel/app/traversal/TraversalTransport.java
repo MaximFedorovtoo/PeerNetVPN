@@ -139,7 +139,7 @@ public final class TraversalTransport implements AutoCloseable {
         initialRetryCount++;
         boolean removed=peer.removeIceCandidates(candidates);
         int accepted=0;for(IceCandidate candidate:candidates)if(peer.addIceCandidate(candidate))accepted++;
-        android.util.Log.i("PeerNetTraversal","Initial ICE retry "+initialRetryCount+", removed="+removed+", accepted signed candidates "+accepted+"/"+candidates.length);
+        android.util.Log.i("UzelioTraversal","Initial ICE retry "+initialRetryCount+", removed="+removed+", accepted signed candidates "+accepted+"/"+candidates.length);
         if(peer.iceConnectionState()==PeerConnection.IceConnectionState.FAILED)scheduleInitialRetry();
         // Credentials, SDP and candidates are unchanged. This is not restartIce().
     }
@@ -223,7 +223,7 @@ public final class TraversalTransport implements AutoCloseable {
             else if(value==PeerConnection.PeerConnectionState.DISCONNECTED||value==PeerConnection.PeerConnectionState.FAILED){
                 connected=false;
                 if(everConnected){state(DISCONNECTED);fail("Established ICE connection lost; create a new transport");}
-                else{android.util.Log.i("PeerNetTraversal","Initial phase pc="+value+", ice="+peer.iceConnectionState()+", gathering="+peer.iceGatheringState());
+                else{android.util.Log.i("UzelioTraversal","Initial phase pc="+value+", ice="+peer.iceConnectionState()+", gathering="+peer.iceGatheringState());
                     if(peer.iceConnectionState()==PeerConnection.IceConnectionState.FAILED){initialIceFailed=true;scheduleInitialRetry();}}
                 // Keep the gathered local ports alive while the signed answer is
                 // manually transferred; a late inbound check can create prflx pairs.

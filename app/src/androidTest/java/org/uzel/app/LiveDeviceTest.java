@@ -105,8 +105,8 @@ public final class LiveDeviceTest extends InstrumentationTestCase {
     /** USB bridge diagnostic only; never evidence of public internet reachability. */
     @SuppressWarnings("unchecked")
     private void runUsb(Bundle args,Context context,NodeController controller,boolean connect) throws Exception {
-        assertFalse("Stop existing PeerNetVPN sharing before an isolated USB test",controller.snapshot().sharing);
-        assertFalse("Wait for existing PeerNetVPN operation before USB test",controller.snapshot().busy);
+        assertFalse("Stop existing Uzelio sharing before an isolated USB test",controller.snapshot().sharing);
+        assertFalse("Wait for existing Uzelio operation before USB test",controller.snapshot().busy);
         int hold=Integer.parseInt(args.getString("holdSeconds","600"));
         int port=Integer.parseInt(args.getString("usbPort","39282"));
         if(hold<1||hold>600||port<1024||port>65535)throw new IllegalArgumentException("Invalid USB hold/port");

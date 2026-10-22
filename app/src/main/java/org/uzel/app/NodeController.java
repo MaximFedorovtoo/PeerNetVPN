@@ -32,11 +32,11 @@ public final class NodeController {
     public static final class Snapshot {
         public boolean sharing,vpnConnected,busy,publicNetwork,bootstrapHosting;
         public String discoveryState="NOT_CONFIGURED",discoveryURL="";
-        public int bootstrapPort;
+        public int bootstrapPort,directoryContacts;
         public long completedDiscoveryRefresh;
         public String publicContact="",networkDetail="",pairingState="IDLE",pairingCode="";
         public String status="",country="",connectedCountry="",publicIp="",invitation="",advertisedHost="",errorDetail="";
-        public long sharedBytes,receivedBytes,uploadBps,shareLimitBps;
+        public long sharedBytes,receivedBytes,uploadBps,shareLimitBps,requestedShareRateBps,minimumShareRateBps;
         public int clients;
         public List<Peer> peers=new ArrayList<>();
     }
@@ -59,6 +59,7 @@ public final class NodeController {
     private volatile AutoDiscoveryManager automatic;
     private volatile String bootstrapUrl="",pendingAutoId="";
     private volatile boolean bootstrapHosting;
+    private volatile long requestedShareRateBps;
     private volatile PeerDiscovery discovery;
     private volatile Node.RelayLease relay;
     private volatile boolean publicNetwork;
@@ -75,6 +76,7 @@ public final class NodeController {
         connectivity=this.context.getSystemService(ConnectivityManager.class);
         advertisedHost=prefs.getString("host","");
         bootstrapUrl=prefs.getString("bootstrapUrl",context.getString(R.string.bootstrap_default_url));bootstrapHosting=prefs.getBoolean("bootstrapHosting",false);
+        requestedShareRateBps=Math.max(0,prefs.getLong("shareRateBps",0));
         publicNetwork=prefs.getBoolean("publicNetwork",false);
         storedShared=prefs.getLong("shared",0);storedReceived=prefs.getLong("received",0);
         try{
@@ -131,6 +133,8 @@ public final class NodeController {
         AutoDiscoveryManager autoOwner=automatic;
         s.discoveryURL=bootstrapUrl;s.discoveryState=autoOwner==null?"NOT_CONFIGURED":autoOwner.state();
         s.completedDiscoveryRefresh=autoOwner==null?0:autoOwner.completedRefresh();
+        s.directoryContacts=autoOwner==null?context.getSharedPreferences("directory_contacts",Context.MODE_PRIVATE).getStringSet("codes",Collections.emptySet()).size():autoOwner.directoryContactCount();
+        s.requestedShareRateBps=requestedShareRateBps;s.shareLimitBps=requestedShareRateBps;
         s.bootstrapHosting=autoOwner!=null&&autoOwner.hosting();s.bootstrapPort=autoOwner==null?0:autoOwner.port();
         s.busy=s.busy||!pendingAutoId.isEmpty();
         PairingManager pairingOwner=pairing;
@@ -139,6 +143,7 @@ public final class NodeController {
         s.receivedBytes=storedReceived+(n==null?0:n.receivedBytes.get());
         if(n!=null){
             s.clients=n.clientCount();s.uploadBps=n.measuredUpload();s.shareLimitBps=n.limit();
+            s.minimumShareRateBps=n.minimumShareRateLimit();
             try{s.invitation=n.invitation(advertisedHost.isEmpty()?localHost():advertisedHost).encode();}
             catch(Exception ignored){}
             if(publicNetwork)try{s.publicContact=ownRoute(n).encode();}catch(Exception ignored){}
@@ -173,7 +178,7 @@ public final class NodeController {
                 Node created=new Node(DeviceIdentity.load(),access,PublicAddress::allowed,secret);
                 synchronized(this){
                     if(epoch!=generation.get() || !sharingRequested || service!=owner){created.close();return;}
-                    created.start(39281);node=created;physical=access;
+                    created.setShareRateLimit(requestedShareRateBps);created.start(39281);node=created;physical=access;
                     pairing=new PairingManager(context,access,created,new PairingManager.Listener(){
                         public void available(Invitation invitation){
                             synchronized(NodeController.this){
@@ -355,6 +360,20 @@ public final class NodeController {
         if(peers.size()>=64 && !peers.containsKey(invite.fingerprint))throw new IllegalArgumentException("Too many nodes");
         addPeer(invite);savePeers();refreshPeers();
     }
+    public synchronized void addDirectoryContact(String code)throws IOException {
+        AutoDiscoveryManager manager=automatic;
+        if(manager!=null)manager.addDirectoryContact(code);else new DirectoryContacts(context).add(code);
+    }
+    public boolean privateDirectoriesAllowed(){return context.getSharedPreferences("directory_contacts",Context.MODE_PRIVATE).getBoolean("allowPrivate",false);}
+    public synchronized void setPrivateDirectoriesAllowed(boolean allowed){
+        AutoDiscoveryManager manager=automatic;
+        if(manager!=null)manager.allowPrivateDirectories(allowed);else new DirectoryContacts(context).setAllowPrivate(allowed);
+    }
+    public synchronized void setShareRateLimit(long bytesPerSecond){
+        if(bytesPerSecond<0)throw new IllegalArgumentException("Rate");
+        Node current=node;if(current!=null)current.setShareRateLimit(bytesPerSecond);
+        requestedShareRateBps=bytesPerSecond;prefs.edit().putLong("shareRateBps",bytesPerSecond).apply();
+    }
     public synchronized void setBootstrapUrl(String value){
         bootstrapUrl=AutoDiscoveryManager.validateUrl(value);prefs.edit().putString("bootstrapUrl",bootstrapUrl).apply();
         AutoDiscoveryManager manager=automatic;if(manager!=null)manager.configure(bootstrapUrl,bootstrapHosting);
@@ -373,7 +392,7 @@ public final class NodeController {
         for(DiscoveryPresence presence:values){
             if(presence.fingerprint.equals(own)||presence.expiresAt<=now)continue;
             Peer peer=peers.get(presence.fingerprint);
-            if(peer==null){if(peers.size()>=64)continue;peer=new Peer();peer.id=presence.fingerprint;peer.name="PeerNet · "+peer.id.substring(0,8);peers.put(peer.id,peer);}
+            if(peer==null){if(peers.size()>=64)continue;peer=new Peer();peer.id=presence.fingerprint;peer.name="Uzelio · "+peer.id.substring(0,8);peers.put(peer.id,peer);}
             peer.autoDiscovered=true;peer.announced=true;peer.presence=presence;
             if(!peer.paired){peer.country=presence.country;peer.clients=presence.clients;peer.upload=presence.upload;peer.freeSlots=Math.max(0,3-presence.clients);peer.expiresAt=presence.expiresAt;}
         }
@@ -398,7 +417,7 @@ public final class NodeController {
     public void acceptPairing(String value){PairingManager owner=pairing;if(owner!=null&&!busy)owner.accept(value);}
     public void cancelPairing(){PairingManager owner=pairing;if(owner!=null)owner.cancel();}
     private void addPeer(Invitation invite){
-        Peer p=new Peer();p.id=invite.fingerprint;p.name="PeerNet · "+p.id.substring(0,8);
+        Peer p=new Peer();p.id=invite.fingerprint;p.name="Uzelio · "+p.id.substring(0,8);
         p.host=invite.host;p.invite=invite;peers.put(p.id,p);
     }
     public void setAdvertisedHost(String host){
@@ -429,7 +448,7 @@ public final class NodeController {
         }else{networkDetail="DISCOVERING";refreshPeers();}
     }
     private void addPublicPeer(PeerRoute route){
-        Peer p=new Peer();p.id=route.fingerprint;p.name="PeerNet · "+p.id.substring(0,8);
+        Peer p=new Peer();p.id=route.fingerprint;p.name="Uzelio · "+p.id.substring(0,8);
         p.host=route.host;p.route=route;peers.put(p.id,p);
     }
     private PeerRoute ownRoute(Node current)throws IOException{
@@ -505,7 +524,7 @@ public final class NodeController {
         if(known!=null&&known.paired)return;
         if(known==null){
             if(peers.size()>=64)return;
-            Peer p=new Peer();p.id=pin;p.host=host;p.name="PeerNet · "+pin.substring(0,8);
+            Peer p=new Peer();p.id=pin;p.host=host;p.name="Uzelio · "+pin.substring(0,8);
             peers.putIfAbsent(pin,p);return;
         }
         // Only try the new address for an already-pinned invitation; TLS still checks its key.

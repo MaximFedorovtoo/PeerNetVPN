@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="directory_contacts_title">Network contacts</string>
+    <string name="directory_code_add">Add server code</string>
+    <string name="directory_code_hint">Server code</string>
+    <string name="directory_code_invalid">Invalid code or contact list full</string>
+    <string name="directory_private">Allow local network contacts</string>
+    <string name="directory_private_hint">Only enable for servers on a trusted local network.</string>
+</resources>

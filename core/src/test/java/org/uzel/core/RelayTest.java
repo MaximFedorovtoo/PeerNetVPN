@@ -109,7 +109,8 @@ public class RelayTest extends NetworkTest {
         Socket registration=command(target,route,ParticipantRelay.REGISTER,null);success(registration);
         Socket request=command(client,route,ParticipantRelay.CONNECT,target.publicRoute("127.0.0.1").fingerprint);
         String ticket=ticket(registration);Socket attached=command(target,route,ParticipantRelay.ATTACH,ticket);success(attached);success(request);
-        r.setMeasuredUpload(60_000); // 20 kB/s shared across both directions and ordinary exit pumping.
+        r.setMeasuredUpload(60_000);
+        r.setShareRateLimit(20_000); // Shared across both directions and ordinary exit pumping.
         byte[] payload=new byte[4000];long start=System.nanoTime();
         ExecutorService pool=Executors.newFixedThreadPool(3);cleanup.add(()->pool.shutdownNow());
         Future<?> first=pool.submit(()->{try{request.getOutputStream().write(payload);request.getOutputStream().flush();assertEquals(payload.length,attached.getInputStream().readNBytes(payload.length).length);}catch(IOException e){throw new RuntimeException(e);}});

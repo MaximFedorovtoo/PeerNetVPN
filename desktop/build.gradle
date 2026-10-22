@@ -1,0 +1,30 @@
+plugins { id 'application' }
+java { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
+application { mainClass = 'org.uzel.desktop.DesktopMain' }
+sourceSets.main.resources {
+    srcDir '../app/src/main/assets'
+    srcDir '../tools'
+    include 'world-countries-110m.bin'
+    include 'org/uzel/desktop/routing/*.ps1'
+    include 'setup-windows-routing.ps1'
+}
+dependencies {
+    implementation project(':core')
+    implementation 'org.bouncycastle:bcpkix-jdk18on:1.83'
+    implementation 'net.java.dev.jna:jna:5.17.0'
+    testImplementation 'junit:junit:4.13.2'
+}
+test { testLogging { events 'passed', 'failed' } }
+tasks.register('packageIcon', JavaExec) {
+    dependsOn classes
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'org.uzel.desktop.PackageIcon'
+    args layout.buildDirectory.file('uzelio.ico').get().asFile.absolutePath
+}
+tasks.register('packageInput', Copy) {
+    dependsOn jar, 'packageIcon'
+    into layout.buildDirectory.dir('package-input')
+    from tasks.jar
+    from configurations.runtimeClasspath
+    from rootProject.file('THIRD_PARTY_NOTICES.txt')
+}

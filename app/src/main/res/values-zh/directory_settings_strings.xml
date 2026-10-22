@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="directory_contacts_title">网络联系人</string>
+    <string name="directory_code_add">添加服务器代码</string>
+    <string name="directory_code_hint">服务器代码</string>
+    <string name="directory_code_invalid">代码无效或联系人列表已满</string>
+    <string name="directory_private">允许本地网络服务器</string>
+    <string name="directory_private_hint">仅对可信本地网络中的服务器启用。</string>
+</resources>

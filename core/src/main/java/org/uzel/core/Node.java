@@ -43,15 +43,24 @@ public final class Node implements AutoCloseable {
     private volatile SSLServerSocket listener;
     private volatile boolean sharing;
     private volatile long measured;
+    private volatile long requestedShareRate;
     public volatile String country="";
-    public final AtomicLong sharedBytes=new AtomicLong();
-    public final AtomicLong receivedBytes=new AtomicLong();
+    public final AtomicLong sharedBytes;
+    public final AtomicLong receivedBytes;
 
     public Node(TlsIdentity identity,NetworkAccess network,Predicate<InetAddress> publicAddress) {
         this(identity,network,publicAddress,TlsIdentity.randomSecret());
     }
     public Node(TlsIdentity identity,NetworkAccess network,Predicate<InetAddress> publicAddress,String secret) {
+        this(identity,network,publicAddress,secret,new AtomicLong(),new AtomicLong());
+    }
+    /** Optional owner-lifetime counters keep late I/O completions visible across node replacement. */
+    public Node(TlsIdentity identity,NetworkAccess network,Predicate<InetAddress> publicAddress,AtomicLong sharedBytes,AtomicLong receivedBytes) {
+        this(identity,network,publicAddress,TlsIdentity.randomSecret(),sharedBytes,receivedBytes);
+    }
+    private Node(TlsIdentity identity,NetworkAccess network,Predicate<InetAddress> publicAddress,String secret,AtomicLong sharedBytes,AtomicLong receivedBytes) {
         this.identity=identity;this.network=network;this.publicAddress=publicAddress;
+        this.sharedBytes=Objects.requireNonNull(sharedBytes);this.receivedBytes=Objects.requireNonNull(receivedBytes);
         if(secret==null || !secret.matches("[0-9a-f]{64}"))throw new IllegalArgumentException("secret");
         this.secret=secret;
         relaySupport=new ParticipantRelay(this);
@@ -68,9 +77,9 @@ public final class Node implements AutoCloseable {
     }
     public boolean isSharing(){return sharing;}
     /** Nonblocking logical revocation. The owner must subsequently close on its network worker. */
-    public void stopAdmission(){sharing=false;measured=0;pacer.setMeasuredUpload(0);}
+    public void stopAdmission(){sharing=false;measured=0;pacer.stop();}
     /** Revoke public requests before asynchronous TLS cleanup without taking network locks. */
-    public void stopPublicAdmission(){forwardingPaused=true;publicMode=false;publicGeneration.incrementAndGet();advertisedRoute=null;}
+    public void stopPublicAdmission(){forwardingPaused=true;publicMode=false;publicGeneration.incrementAndGet();pacer.cancelPending();advertisedRoute=null;}
     /** Optional test diagnostics. Disabled by default and bounded to eight failures per observer. */
     public void setFailureObserver(Consumer<Throwable> observer){failureObserver=observer;observedFailures.set(0);}
     private void reportFailure(Throwable error){
@@ -79,6 +88,16 @@ public final class Node implements AutoCloseable {
     }
     public long measuredUpload(){return measured;}
     public long limit(){return pacer.limit();}
+    /** User choice in bytes/s; zero selects unlimited sharing. */
+    public long requestedShareRateLimit(){return requestedShareRate;}
+    public long minimumShareRateLimit(){long speed=measured;return speed/3+(speed%3==0?0:1);}
+    public synchronized void setShareRateLimit(long bytesPerSecond){
+        if(bytesPerSecond<0 || (bytesPerSecond>0 && bytesPerSecond<minimumShareRateLimit()))
+            throw new IllegalArgumentException("Sharing speed below minimum");
+        requestedShareRate=bytesPerSecond;
+        updateShareRate();
+    }
+    private void updateShareRate(){pacer.setShareRateLimit(requestedShareRate==0?0:Math.max(requestedShareRate,minimumShareRateLimit()));}
     public int port(){SSLServerSocket s=listener;return s==null?0:s.getLocalPort();}
     public int clientCount(){synchronized(admission){return attachedIdentities().size();}}
     private Set<String> attachedIdentities(){
@@ -142,6 +161,7 @@ public final class Node implements AutoCloseable {
             publicMode=enabled;
             if(!enabled){
                 publicGeneration.incrementAndGet();advertisedRoute=null;
+                pacer.cancelPending();
                 publicSockets.forEach(Node::closeQuietly);publicSockets.clear();
                 controls.values().forEach(Node::closeQuietly);flows.keySet().forEach(Node::closeQuietly);
                 sessions.forEach(Session::close);
@@ -170,8 +190,10 @@ public final class Node implements AutoCloseable {
         public PeerRoute route(){return registration.route;}
         public void close(){registration.close();}
     }
-    public void setMeasuredUpload(long bytesPerSecond){
-        pacer.setMeasuredUpload(bytesPerSecond);measured=bytesPerSecond;
+    public synchronized void setMeasuredUpload(long bytesPerSecond){
+        if(bytesPerSecond<0 || bytesPerSecond>125_000_000_000L)throw new IllegalArgumentException("speed");
+        measured=bytesPerSecond;updateShareRate();
+        if(bytesPerSecond<=0)pacer.cancelPending();
         if(bytesPerSecond<=0)synchronized(admission) {
             controls.values().forEach(Node::closeQuietly);
             flows.keySet().forEach(Node::closeQuietly);
@@ -418,7 +440,7 @@ public final class Node implements AutoCloseable {
         }finally{receiver.cancel(true);sockets.remove(udp);udp.close();}
     }
     private void requireForwarding(long epoch)throws IOException {
-        if(!sharing || forwardingPaused || epoch!=publicGeneration.get())throw new IOException("Forwarding revoked");
+        if(!sharing || measured<=0 || forwardingPaused || epoch!=publicGeneration.get())throw new IOException("Forwarding revoked");
     }
     void pump(InputStream in,OutputStream out,boolean pace,AtomicLong count) throws IOException {
         long forwardingEpoch=publicGeneration.get();

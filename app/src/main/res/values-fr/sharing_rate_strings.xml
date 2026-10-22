@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="sharing_rate_title">Débit de partage</string>
+    <string name="sharing_rate_unlimited">Sans limite</string>
+    <string name="sharing_rate_manual">Débit personnalisé</string>
+    <string name="sharing_rate_unit">Mbit/s</string>
+    <string name="sharing_rate_effective">Limite : %1$s Mbit/s</string>
+    <string name="sharing_rate_minimum">Minimum : %1$s Mbit/s</string>
+    <string name="sharing_rate_minimum_unknown">Le minimum apparaît après la mesure du débit.</string>
+    <string name="sharing_rate_requested">Choisi : %1$s Mbit/s</string>
+    <string name="sharing_rate_edit">Modifier le débit</string>
+    <string name="sharing_rate_help">Choisissez sans limite ou un débit au moins égal au tiers du débit montant mesuré.</string>
+    <string name="sharing_rate_invalid">Saisissez un débit positif de %1$s à 1000000 Mbit/s.</string>
+</resources>

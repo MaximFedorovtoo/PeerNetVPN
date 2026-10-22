@@ -1,12 +1,14 @@
-# PeerNet for Android
+# Uzelio
 
-**[Download the Android app](https://github.com/MaximFedorovtoo/PeerNetVPN/releases/latest/download/PeerNet.apk)**
+**[Download the Android app](https://github.com/MaximFedorovtoo/Uzelio/releases/latest/download/Uzelio.apk)**
+
+**[Download for Windows](https://github.com/MaximFedorovtoo/Uzelio/releases/latest/download/Uzelio-Windows.exe)**
 
 A network for sharing internet connections between participants. Find available nodes on the map, choose a region and connect selected apps.
 
 ## Get started
 
-1. Install PeerNet on your phone.
+1. Install Uzelio on your phone.
 2. Enable sharing and wait for the automatic speed measurement.
 3. Open the map and choose an available node.
 4. Select the apps that will use the participant’s connection. Other apps will continue using your regular network.
@@ -14,7 +16,7 @@ A network for sharing internet connections between participants. Find available 
 ## Network rules
 
 - Enable your own sharing to use other participants’ connections. No minimum upload volume is required.
-- Each device accepts up to three devices. Their combined sharing speed is limited to one third of the measured upload speed.
+- Each device accepts up to three devices. Choose unlimited sharing or a speed limit of at least one third of your measured upload speed.
 
 Android 10 or later. Eight interface languages.
 

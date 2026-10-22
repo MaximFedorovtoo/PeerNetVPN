@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">PeerNet</string>
+    <string name="app_name">Uzelio</string>
     <string name="home">Inicio</string>
     <string name="nodes">Nodos</string>
     <string name="statistics">Estadísticas</string>
@@ -14,7 +14,7 @@
     <string name="start_sharing">Comenzar a compartir</string>
     <string name="stop_sharing">Dejar de compartir</string>
     <string name="fair_title">Un tercio para la red</string>
-    <string name="fair_explanation">La conexión compartida se limita a un tercio de la velocidad de carga medida. Son estadísticas de tráfico, no un saldo de créditos.</string>
+    <string name="fair_explanation">Elige sin límite o una velocidad de al menos un tercio de la carga medida. Los contadores muestran estadísticas de tráfico.</string>
     <string name="clients">Dispositivos conectados: %1$d / 3</string>
     <string name="share_limit">Límite compartido: %1$s</string>
     <string name="address">IP: %1$s · %2$s</string>
@@ -74,11 +74,11 @@
     <string name="invalid_host">Dirección no válida. Ingresa solo una dirección IP o un nombre DNS, sin puerto.</string>
     <string name="saved">Guardado</string>
     <string name="notification_channel">Conexión del nodo</string>
-    <string name="notification_title">PeerNet</string>
+    <string name="notification_title">Uzelio</string>
     <string name="notification_text">El servicio del nodo está activo. Toca para abrir.</string>
     <string name="notification_stop">Detener</string>
     <string name="vpn_apps">Apps que usan la VPN</string>
-    <string name="vpn_apps_help">Solo las apps seleccionadas usan la VPN; las demás se conectan directamente. Selecciona al menos una. Se muestran las apps que se pueden abrir y tienen acceso a Internet, excepto PeerNet. Guardar desconecta la VPN activa o en proceso de conexión. Vuelve a conectarte para aplicar la selección.</string>
+    <string name="vpn_apps_help">Solo las apps seleccionadas usan la VPN; las demás se conectan directamente. Selecciona al menos una. Se muestran las apps que se pueden abrir y tienen acceso a Internet, excepto Uzelio. Guardar desconecta la VPN activa o en proceso de conexión. Vuelve a conectarte para aplicar la selección.</string>
     <string name="apps_selected">Apps seleccionadas: %1$d</string>
     <string name="choose_apps">Elegir apps</string>
     <string name="apps_required">Antes de conectarte, selecciona al menos una app instalada en Configuración. Una selección vacía impide iniciar la VPN.</string>

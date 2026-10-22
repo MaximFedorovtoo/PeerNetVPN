@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">PeerNet</string>
+    <string name="app_name">Uzelio</string>
     <string name="home">Главная</string>
     <string name="nodes">Узлы</string>
     <string name="statistics">Статистика</string>
@@ -14,7 +14,7 @@
     <string name="start_sharing">Начать раздачу</string>
     <string name="stop_sharing">Остановить раздачу</string>
     <string name="fair_title">Треть скорости — сети</string>
-    <string name="fair_explanation">Раздача ограничена третью измеренной скорости отдачи. Здесь показан трафик, а не баланс кредитов.</string>
+    <string name="fair_explanation">Выберите раздачу без ограничений или свою скорость не ниже трети измеренной отдачи. Счётчики показывают статистику трафика.</string>
     <string name="clients">Подключено устройств: %1$d / 3</string>
     <string name="share_limit">Лимит раздачи: %1$s</string>
     <string name="address">IP: %1$s · %2$s</string>
@@ -74,11 +74,11 @@
     <string name="invalid_host">Некорректный адрес. Введите только IP-адрес или DNS-имя без порта.</string>
     <string name="saved">Сохранено</string>
     <string name="notification_channel">Подключение узла</string>
-    <string name="notification_title">PeerNet</string>
+    <string name="notification_title">Uzelio</string>
     <string name="notification_text">Служба узла работает. Нажмите, чтобы открыть.</string>
     <string name="notification_stop">Остановить</string>
     <string name="vpn_apps">Приложения для VPN</string>
-    <string name="vpn_apps_help">Только выбранные приложения используют VPN, остальные подключаются напрямую. Выберите хотя бы одно приложение. Показаны запускаемые приложения с доступом в интернет; PeerNet исключён. При сохранении текущий или запускаемый VPN отключится. Для применения выбора подключитесь снова.</string>
+    <string name="vpn_apps_help">Только выбранные приложения используют VPN, остальные подключаются напрямую. Выберите хотя бы одно приложение. Показаны запускаемые приложения с доступом в интернет; Uzelio исключён. При сохранении текущий или запускаемый VPN отключится. Для применения выбора подключитесь снова.</string>
     <string name="apps_selected">Выбрано приложений: %1$d</string>
     <string name="choose_apps">Выбрать приложения</string>
     <string name="apps_required">Перед подключением выберите хотя бы одно установленное приложение в настройках. При пустом выборе VPN не запустится.</string>

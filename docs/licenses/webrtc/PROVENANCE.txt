@@ -1,6 +1,6 @@
 WebRTC Android 144.7559.15 license provenance (collected 2026-10-21)
 
-Binary used by PeerNetVPN:
+Binary used by Uzelio:
   Maven coordinates io.github.webrtc-sdk:android:144.7559.15 (unprefixed AAR)
   https://repo.maven.apache.org/maven2/io/github/webrtc-sdk/android/144.7559.15/android-144.7559.15.aar
   SHA256 fc7c8d027eb33860ccbb7847988f7f942d44a92d1f575348bba6c0250cde4071

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="directory_contacts_title">Контакты сети</string>
+    <string name="directory_code_add">Добавить код сервера</string>
+    <string name="directory_code_hint">Код сервера</string>
+    <string name="directory_code_invalid">Неверный код или список контактов заполнен</string>
+    <string name="directory_private">Серверы в локальной сети</string>
+    <string name="directory_private_hint">Включайте только для серверов в доверенной локальной сети.</string>
+</resources>

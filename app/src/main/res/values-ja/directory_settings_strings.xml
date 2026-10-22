@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="directory_contacts_title">ネットワークの連絡先</string>
+    <string name="directory_code_add">サーバーコードを追加</string>
+    <string name="directory_code_hint">サーバーコード</string>
+    <string name="directory_code_invalid">コードが無効か、連絡先が上限に達しています</string>
+    <string name="directory_private">ローカルネットワークを許可</string>
+    <string name="directory_private_hint">信頼できるローカルネットワークのサーバーにのみ有効にしてください。</string>
+</resources>

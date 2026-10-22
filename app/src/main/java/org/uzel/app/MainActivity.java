@@ -43,6 +43,7 @@ public class MainActivity extends Activity {
     private String pendingPeer, peerSignature = "";
     private int selectedTab,selectedRegion;
     private TextView discoveryDetail,bootstrapAddress;
+    private TextView sharingRateValue,sharingRateMinimum,sharingRateRequested;
     private Switch publicSwitch;
     private TextView publicDetail;
     private TextView pairingDetail;
@@ -203,7 +204,7 @@ public class MainActivity extends Activity {
     private void buildHeader(int tab) {
         header.removeAllViews();
         if(tab==0){
-            TextView brand=label("PeerNet",32,NAVY,true);android.text.SpannableString word=new android.text.SpannableString("PeerNet");word.setSpan(new android.text.style.ForegroundColorSpan(GREEN),4,7,0);brand.setText(word);header.addView(brand,new LinearLayout.LayoutParams(0,-2,1));
+            TextView brand=label("Uzelio",32,NAVY,true);android.text.SpannableString word=new android.text.SpannableString("Uzelio");word.setSpan(new android.text.style.ForegroundColorSpan(GREEN),4,6,0);brand.setText(word);header.addView(brand,new LinearLayout.LayoutParams(0,-2,1));
             header.addView(iconButton("settings",s("settings"),()->showTab(3)),new LinearLayout.LayoutParams(dp(48),dp(48)));
         }else{
             View back=iconButton("back",s("home"),()->showTab(0));back.setBackground(null);header.addView(back,new LinearLayout.LayoutParams(dp(48),dp(48)));
@@ -214,6 +215,7 @@ public class MainActivity extends Activity {
         selectedTab=tab; content.removeAllViews(); nav.removeAllViews(); peerSignature="";
         status=address=shareValue=receivedValue=rateValue=clientsValue=limitValue=detail=null; publicSwitch=null; publicDetail=null; peers=null; sharingButton=vpnButton=measureButton=null;
         pairingDetail=null;pairingCreate=pairingImport=pairingShare=null;discoveryDetail=bootstrapAddress=null;
+        sharingRateValue=sharingRateMinimum=sharingRateRequested=null;
         networkMap=null;searchTitle=searchHint=mapCount=null;searchProgress=null;searchAction=allRegions=searchDetails=null;regionChips=null;searchPanel=null;filterStrip=null;searchArtwork=null;
         String[] tabs={"home","nodes","statistics","settings"}; String[] symbols={"home","map","traffic","profile"};
         for(int i=0;i<tabs.length;i++) { final int index=i;String title=switch(i){case 1->getString(R.string.ui_map_tab);case 2->getString(R.string.ui_traffic);case 3->getString(R.string.ui_profile);default->s(tabs[i]);};LinearLayout item=column();item.setGravity(Gravity.CENTER);int tint=i==tab?GREEN:MUTED;
@@ -292,6 +294,13 @@ public class MainActivity extends Activity {
         apps.addView(label(getString(R.string.ui_apps),18,NAVY,true));
         apps.addView(label(s("apps_selected",AppSelection.validPackages(this).size()),15,NAVY,true));
         button(apps,getString(R.string.ui_choose_apps),false,this::chooseApps);
+        LinearLayout sharingRate=card();
+        sharingRate.addView(label(getString(R.string.sharing_rate_title),18,NAVY,true));
+        sharingRateValue=label("",24,NAVY,true);sharingRate.addView(sharingRateValue);
+        sharingRateMinimum=label("",14,MUTED,false);sharingRate.addView(sharingRateMinimum);
+        sharingRateRequested=label("",14,MUTED,false);sharingRate.addView(sharingRateRequested);
+        button(sharingRate,getString(R.string.sharing_rate_edit),false,this::editSharingRate);
+        LinearLayout contacts=card();contacts.addView(label(getString(R.string.directory_contacts_title),18,NAVY,true));button(contacts,getString(R.string.directory_code_add),false,this::addDirectoryCode);
         LinearLayout language=card();button(language,s("choose_language"),false,this::chooseLanguage);
         button(language,getString(R.string.ui_more),false,()->{advanced=!advanced;showTab(3);});
         if(!advanced)return;
@@ -300,6 +309,7 @@ public class MainActivity extends Activity {
         bootstrapAddress=label("",14,MUTED,false);bootstrapAddress.setTextIsSelectable(true);bootstrap.addView(bootstrapAddress);
         discoveryDetail=label("",15,NAVY,false);bootstrap.addView(discoveryDetail);
         button(bootstrap,getString(R.string.bootstrap_edit),false,this::editBootstrap);
+        LinearLayout localContacts=card();Switch local=new Switch(this);local.setText(R.string.directory_private);local.setTextColor(NAVY);local.setMinHeight(dp(52));local.setChecked(controller.privateDirectoriesAllowed());localContacts.addView(local);localContacts.addView(label(getString(R.string.directory_private_hint),14,MUTED,false));local.setOnClickListener(v->controller.setPrivateDirectoriesAllowed(local.isChecked()));
         LinearLayout networkCard = card();
         publicSwitch = new Switch(this);
         publicSwitch.setText(s("public_network"));
@@ -345,6 +355,13 @@ public class MainActivity extends Activity {
         if(address!=null){address.setText(x.vpnConnected&&!empty(x.connectedCountry)?flag(x.connectedCountry)+"  "+country(x.connectedCountry):"");address.setVisibility(address.length()==0?View.GONE:View.VISIBLE);}
         if(clientsValue!=null)clientsValue.setText(getString(R.string.ui_connected_count,x.clients));
         if(limitValue!=null){limitValue.setText(x.shareLimitBps>0?getString(R.string.ui_limit,speed(x.shareLimitBps)):"");limitValue.setVisibility(x.shareLimitBps>0?View.VISIBLE:View.GONE);}
+        if(sharingRateValue!=null)sharingRateValue.setText(x.shareLimitBps==0?getString(R.string.sharing_rate_unlimited):getString(R.string.sharing_rate_effective,SharingRateInput.format(x.shareLimitBps)));
+        if(sharingRateMinimum!=null)sharingRateMinimum.setText(sharingRateMinimumText(x.minimumShareRateBps));
+        if(sharingRateRequested!=null){
+            boolean raised=x.requestedShareRateBps>0 && x.requestedShareRateBps!=x.shareLimitBps;
+            sharingRateRequested.setText(raised?getString(R.string.sharing_rate_requested,SharingRateInput.format(x.requestedShareRateBps)):"");
+            sharingRateRequested.setVisibility(raised?View.VISIBLE:View.GONE);
+        }
         if(sharingButton!=null){sharingButton.setText(getString(x.sharing?R.string.ui_sharing_on:R.string.ui_share));sharingButton.setContentDescription(getString(x.sharing?R.string.ui_stop_share:R.string.ui_share));sharingButton.setEnabled(x.sharing||!x.busy);}
         if(vpnButton!=null){vpnButton.setText(s(x.vpnConnected?"disconnect":"choose_node"));vpnButton.setEnabled(!x.busy);}
         if(shareValue!=null)shareValue.setText(Formatter.formatFileSize(this,x.sharedBytes));
@@ -399,6 +416,16 @@ public class MainActivity extends Activity {
         if(state==null)return R.string.discovery_not_configured;
         return switch(state){case "STARTING"->R.string.discovery_starting;case "ONLINE"->R.string.discovery_online;case "OFFLINE"->R.string.discovery_offline;case "PAIRING"->R.string.discovery_pairing;default->R.string.discovery_not_configured;};
     }
+    private void addDirectoryCode(){
+        EditText input=new EditText(this);input.setMinLines(3);input.setMaxLines(6);input.setHint(R.string.directory_code_hint);input.setTextColor(NAVY);input.setHintTextColor(MUTED);
+        input.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_FLAG_MULTI_LINE|InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);input.setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_NO);
+        input.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(44000)});
+        AlertDialog dialog=new AlertDialog.Builder(this).setTitle(R.string.directory_code_add).setView(input).setNegativeButton(s("cancel"),null).setPositiveButton(s("add"),null).create();
+        dialog.setOnShowListener(v->dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(w->{
+            try{controller.addDirectoryContact(input.getText().toString());input.setText("");dialog.dismiss();refresh();}
+            catch(java.io.IOException|IllegalArgumentException invalid){input.setError(getString(R.string.directory_code_invalid));}
+        }));dialog.show();
+    }
     private void editBootstrap(){
         EditText input=new EditText(this);input.setSingleLine(true);input.setHint(R.string.bootstrap_hint);
         input.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_URI);input.setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_NO);
@@ -432,6 +459,34 @@ public class MainActivity extends Activity {
     private void connect(String id){if(!hasSelectedApps())return;Intent prepare=VpnService.prepare(this);pendingPeer=id;if(prepare!=null)startActivityForResult(prepare,71);else{controller.connect(id);pendingPeer=null;showTab(0);}}
     @Override protected void onActivityResult(int request,int result,Intent data){super.onActivityResult(request,result,data);if(request==71){String id=pendingPeer;pendingPeer=null;if(result==RESULT_OK&&id!=null&&hasSelectedApps()){controller.connect(id);showTab(0);}}}
     private void requestNotifications(){if(Build.VERSION.SDK_INT>=33&&checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)!=android.content.pm.PackageManager.PERMISSION_GRANTED)requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS},72);}
+    private String sharingRateMinimumText(long minimum){
+        return minimum>0?getString(R.string.sharing_rate_minimum,SharingRateInput.format(minimum)):getString(R.string.sharing_rate_minimum_unknown);
+    }
+    private void editSharingRate(){
+        NodeController.Snapshot state=controller.snapshot();
+        LinearLayout panel=column();panel.setPadding(dp(20),dp(8),dp(20),dp(8));
+        panel.addView(label(getString(R.string.sharing_rate_help),14,MUTED,false));
+        TextView minimum=label(sharingRateMinimumText(state.minimumShareRateBps),14,MUTED,false);panel.addView(minimum);
+        RadioGroup choices=new RadioGroup(this);panel.addView(choices);
+        RadioButton unlimited=new RadioButton(this);unlimited.setId(View.generateViewId());unlimited.setText(R.string.sharing_rate_unlimited);unlimited.setTextColor(NAVY);unlimited.setMinHeight(dp(48));choices.addView(unlimited);
+        RadioButton manual=new RadioButton(this);manual.setId(View.generateViewId());manual.setText(R.string.sharing_rate_manual);manual.setTextColor(NAVY);manual.setMinHeight(dp(48));choices.addView(manual);
+        EditText input=new EditText(this);input.setSingleLine(true);input.setHint(R.string.sharing_rate_unit);input.setContentDescription(getString(R.string.sharing_rate_unit));
+        // Keep text validation intact for pasted input while showing a decimal keyboard.
+        input.setRawInputType(InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_FLAG_DECIMAL);input.setTextColor(NAVY);input.setHintTextColor(MUTED);panel.addView(input);
+        if(state.requestedShareRateBps>0)input.setText(SharingRateInput.format(state.requestedShareRateBps));
+        choices.check(state.requestedShareRateBps==0?unlimited.getId():manual.getId());
+        input.setEnabled(state.requestedShareRateBps>0);
+        choices.setOnCheckedChangeListener((group,id)->{input.setEnabled(id==manual.getId());input.setError(null);});
+        AlertDialog dialog=new AlertDialog.Builder(this).setTitle(R.string.sharing_rate_title).setView(panel).setNegativeButton(s("cancel"),null).setPositiveButton(s("save"),null).create();
+        dialog.setOnShowListener(v->dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(w->{
+            NodeController.Snapshot latest=controller.snapshot();minimum.setText(sharingRateMinimumText(latest.minimumShareRateBps));
+            try {
+                long rate=unlimited.isChecked()?0:SharingRateInput.parse(input.getText().toString(),latest.minimumShareRateBps);
+                controller.setShareRateLimit(rate);dialog.dismiss();refresh();
+            } catch(IllegalArgumentException e){input.setError(getString(R.string.sharing_rate_invalid,SharingRateInput.format(latest.minimumShareRateBps)));}
+        }));
+        dialog.show();
+    }
     private void addInvitation(){EditText input=new EditText(this);input.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_FLAG_MULTI_LINE|InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);input.setHint(s("invitation_hint"));input.setMinLines(3);input.setPadding(dp(20),dp(12),dp(20),dp(12));AlertDialog dialog=new AlertDialog.Builder(this).setTitle(s("add_invitation")).setMessage(s("invitation_notice")).setView(input).setNegativeButton(s("cancel"),null).setPositiveButton(s("add"),null).create();dialog.setOnShowListener(v->dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(w->{try{controller.addInvitation(input.getText().toString().trim());dialog.dismiss();refresh();}catch(IllegalArgumentException e){input.setError(s("invalid_invitation"));}}));dialog.show();}
     private void ownInvitation(boolean share){String value=controller.snapshot().invitation;if(empty(value)){new AlertDialog.Builder(this).setMessage(s("invitation_unavailable")).setPositiveButton(s("ok"),null).show();return;}if(share){Intent intent=new Intent(Intent.ACTION_SEND);intent.setType("text/plain");intent.putExtra(Intent.EXTRA_TEXT,value);startActivity(Intent.createChooser(intent,s("share_invitation")));}else{ClipboardManager clipboard=(ClipboardManager)getSystemService(CLIPBOARD_SERVICE);clipboard.setPrimaryClip(ClipData.newPlainText(s("invitation"),value));Toast.makeText(this,s("copied"),Toast.LENGTH_SHORT).show();}}
     private void importPairing(){

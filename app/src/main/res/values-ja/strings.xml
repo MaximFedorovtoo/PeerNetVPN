@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">PeerNet</string>
+    <string name="app_name">Uzelio</string>
     <string name="home">ホーム</string>
     <string name="nodes">ノード</string>
     <string name="statistics">統計</string>
@@ -14,7 +14,7 @@
     <string name="start_sharing">共有を開始</string>
     <string name="stop_sharing">共有を停止</string>
     <string name="fair_title">速度の 3 分の 1 をネットワークへ</string>
-    <string name="fair_explanation">共有の上限は、測定したアップロード速度の 3 分の 1 です。表示は通信量の統計で、クレジット残高ではありません。</string>
+    <string name="fair_explanation">制限なし、または測定したアップロード速度の3分の1以上を指定できます。カウンターは通信量の統計を表示します。</string>
     <string name="clients">接続中のデバイス：%1$d / 3</string>
     <string name="share_limit">共有の上限：%1$s</string>
     <string name="address">IP：%1$s · %2$s</string>
@@ -74,11 +74,11 @@
     <string name="invalid_host">無効なアドレスです。ポートを含めず、IP アドレスまたは DNS 名のみを入力してください。</string>
     <string name="saved">保存しました</string>
     <string name="notification_channel">ノード接続</string>
-    <string name="notification_title">PeerNet</string>
+    <string name="notification_title">Uzelio</string>
     <string name="notification_text">ノードサービスは動作中です。タップして開きます。</string>
     <string name="notification_stop">停止</string>
     <string name="vpn_apps">VPN を使うアプリ</string>
-    <string name="vpn_apps_help">選択したアプリのみが VPN を使い、他のアプリは直接接続します。少なくとも 1 つ選んでください。起動でき、インターネットにアクセスできるアプリのみ表示します。PeerNet は除外されます。保存すると接続済みまたは接続中の VPN が切断されます。選択を適用するには再接続してください。</string>
+    <string name="vpn_apps_help">選択したアプリのみが VPN を使い、他のアプリは直接接続します。少なくとも 1 つ選んでください。起動でき、インターネットにアクセスできるアプリのみ表示します。Uzelio は除外されます。保存すると接続済みまたは接続中の VPN が切断されます。選択を適用するには再接続してください。</string>
     <string name="apps_selected">選択したアプリ：%1$d</string>
     <string name="choose_apps">アプリを選択</string>
     <string name="apps_required">接続前に設定でインストール済みのアプリを少なくとも 1 つ選んでください。選択が空の場合は VPN を開始できません。</string>

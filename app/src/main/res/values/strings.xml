@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">PeerNet</string>
+    <string name="app_name">Uzelio</string>
     <string name="home">Home</string>
     <string name="nodes">Nodes</string>
     <string name="statistics">Statistics</string>
@@ -14,7 +14,7 @@
     <string name="start_sharing">Start sharing</string>
     <string name="stop_sharing">Stop sharing</string>
     <string name="fair_title">One third for the network</string>
-    <string name="fair_explanation">Sharing is capped at one third of your measured upload speed. These are traffic statistics, not a credit balance.</string>
+    <string name="fair_explanation">Choose unlimited or a custom sharing speed of at least one third of your measured upload. The counters show traffic statistics.</string>
     <string name="clients">Connected devices: %1$d / 3</string>
     <string name="share_limit">Sharing limit: %1$s</string>
     <string name="address">IP: %1$s · %2$s</string>
@@ -74,11 +74,11 @@
     <string name="invalid_host">Invalid address. Enter only an IP address or DNS name, without a port.</string>
     <string name="saved">Saved</string>
     <string name="notification_channel">Node connection</string>
-    <string name="notification_title">PeerNet</string>
+    <string name="notification_title">Uzelio</string>
     <string name="notification_text">The node service is running. Tap to open.</string>
     <string name="notification_stop">Stop</string>
     <string name="vpn_apps">Apps using VPN</string>
-    <string name="vpn_apps_help">Only selected apps use the VPN; all others connect directly. Choose at least one app. Only launchable apps with internet access are listed; PeerNet is excluded. Saving disconnects an active or connecting VPN. Reconnect to apply the selection.</string>
+    <string name="vpn_apps_help">Only selected apps use the VPN; all others connect directly. Choose at least one app. Only launchable apps with internet access are listed; Uzelio is excluded. Saving disconnects an active or connecting VPN. Reconnect to apply the selection.</string>
     <string name="apps_selected">Selected apps: %1$d</string>
     <string name="choose_apps">Choose apps</string>
     <string name="apps_required">Choose at least one installed app in Settings before connecting. An empty selection cannot start a VPN.</string>

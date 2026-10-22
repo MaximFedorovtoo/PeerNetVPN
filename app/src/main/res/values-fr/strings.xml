@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">PeerNet</string>
+    <string name="app_name">Uzelio</string>
     <string name="home">Accueil</string>
     <string name="nodes">Nœuds</string>
     <string name="statistics">Statistiques</string>
@@ -14,7 +14,7 @@
     <string name="start_sharing">Activer le partage</string>
     <string name="stop_sharing">Arrêter le partage</string>
     <string name="fair_title">Un tiers pour le réseau</string>
-    <string name="fair_explanation">Le partage est limité au tiers du débit montant mesuré. Il s’agit de statistiques de trafic, pas d’un solde de crédits.</string>
+    <string name="fair_explanation">Choisissez sans limite ou un débit au moins égal au tiers du débit montant mesuré. Les compteurs affichent les statistiques du trafic.</string>
     <string name="clients">Appareils connectés : %1$d / 3</string>
     <string name="share_limit">Limite de partage : %1$s</string>
     <string name="address">IP : %1$s · %2$s</string>
@@ -74,11 +74,11 @@
     <string name="invalid_host">Adresse invalide. Entrez uniquement une adresse IP ou un nom DNS, sans port.</string>
     <string name="saved">Enregistré</string>
     <string name="notification_channel">Connexion du nœud</string>
-    <string name="notification_title">PeerNet</string>
+    <string name="notification_title">Uzelio</string>
     <string name="notification_text">Le service du nœud est actif. Appuyez pour ouvrir.</string>
     <string name="notification_stop">Arrêter</string>
     <string name="vpn_apps">Applications utilisant le VPN</string>
-    <string name="vpn_apps_help">Seules les applications sélectionnées utilisent le VPN ; les autres se connectent directement. Sélectionnez-en au moins une. La liste affiche les applications lançables avec accès à Internet, hors PeerNet. Enregistrer déconnecte le VPN actif ou en cours de connexion. Reconnectez-vous pour appliquer la sélection.</string>
+    <string name="vpn_apps_help">Seules les applications sélectionnées utilisent le VPN ; les autres se connectent directement. Sélectionnez-en au moins une. La liste affiche les applications lançables avec accès à Internet, hors Uzelio. Enregistrer déconnecte le VPN actif ou en cours de connexion. Reconnectez-vous pour appliquer la sélection.</string>
     <string name="apps_selected">Applications sélectionnées : %1$d</string>
     <string name="choose_apps">Choisir les applications</string>
     <string name="apps_required">Avant la connexion, sélectionnez au moins une application installée dans les réglages. Une sélection vide empêche le démarrage du VPN.</string>

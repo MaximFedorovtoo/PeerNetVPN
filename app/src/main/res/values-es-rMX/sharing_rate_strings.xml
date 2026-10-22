@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="sharing_rate_title">Velocidad compartida</string>
+    <string name="sharing_rate_unlimited">Sin límite</string>
+    <string name="sharing_rate_manual">Velocidad propia</string>
+    <string name="sharing_rate_unit">Mbit/s</string>
+    <string name="sharing_rate_effective">Límite: %1$s Mbit/s</string>
+    <string name="sharing_rate_minimum">Mínimo: %1$s Mbit/s</string>
+    <string name="sharing_rate_minimum_unknown">El mínimo aparece después de medir la velocidad.</string>
+    <string name="sharing_rate_requested">Elegida: %1$s Mbit/s</string>
+    <string name="sharing_rate_edit">Cambiar velocidad</string>
+    <string name="sharing_rate_help">Elige sin límite o una velocidad de al menos un tercio de la carga medida.</string>
+    <string name="sharing_rate_invalid">Ingresa una velocidad positiva de %1$s a 1000000 Mbit/s.</string>
+</resources>

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="sharing_rate_title">Скорость раздачи</string>
+    <string name="sharing_rate_unlimited">Без ограничений</string>
+    <string name="sharing_rate_manual">Своя скорость</string>
+    <string name="sharing_rate_unit">Мбит/с</string>
+    <string name="sharing_rate_effective">Лимит: %1$s Мбит/с</string>
+    <string name="sharing_rate_minimum">Минимум: %1$s Мбит/с</string>
+    <string name="sharing_rate_minimum_unknown">Минимум появится после замера скорости.</string>
+    <string name="sharing_rate_requested">Выбрано: %1$s Мбит/с</string>
+    <string name="sharing_rate_edit">Изменить скорость</string>
+    <string name="sharing_rate_help">Выберите раздачу без ограничений или скорость не ниже трети измеренной отдачи.</string>
+    <string name="sharing_rate_invalid">Введите положительную скорость от %1$s до 1000000 Мбит/с.</string>
+</resources>

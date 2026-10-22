@@ -23,9 +23,9 @@ public class PolicyTest {
         assertEquals(0, gate.size());
     }
 
-    @Test public void limiterPacesCombinedConcurrentOutputAtOneThird() throws Exception {
+    @Test public void limiterPacesCombinedConcurrentOutputAtExplicitRate() throws Exception {
         Pacer pacer = new Pacer();
-        pacer.setMeasuredUpload(180_000); // bytes/s; 60,000 total bytes/s allowed
+        pacer.setShareRateLimit(60_000); // One aggregate budget, independent of speed probes.
         ExecutorService pool = Executors.newFixedThreadPool(2);
         long started = System.nanoTime();
         Callable<Void> copy = () -> { for (int i=0;i<15;i++) pacer.acquire(2048); return null; };
@@ -39,9 +39,43 @@ public class PolicyTest {
         assertEquals(60_000, pacer.limit());
     }
 
-    @Test public void unknownSpeedCannotForward() throws Exception {
-        try { new Pacer().acquire(100); fail("No unmeasured unlimited fallback"); }
-        catch (java.io.IOException expected) { }
+    @Test public void unlimitedDefaultDoesNotBlock() throws Exception {
+        Pacer pacer=new Pacer();
+        assertEquals(0,pacer.limit());
+        ExecutorService pool=Executors.newSingleThreadExecutor();
+        try {pool.submit(()->{pacer.acquire(65536);return null;}).get(1,TimeUnit.SECONDS);}
+        finally {pool.shutdownNow();}
+    }
+
+    @Test public void limiterRejectsNegativeButSupportsEntirePositiveLongRange() throws Exception {
+        Pacer pacer=new Pacer();
+        try {pacer.setShareRateLimit(-1);fail("negative rate");}
+        catch(IllegalArgumentException expected){}
+        pacer.setShareRateLimit(Long.MAX_VALUE);
+        pacer.acquire(65536);
+        assertEquals(Long.MAX_VALUE,pacer.limit());
+    }
+
+    @Test public void switchingToUnlimitedWakesPacedOutput() throws Exception {
+        Pacer pacer=new Pacer();pacer.setShareRateLimit(1);
+        ExecutorService pool=Executors.newSingleThreadExecutor();
+        try {
+            Future<?> output=pool.submit(()->{pacer.acquire(65536);return null;});
+            Thread.sleep(50);assertFalse(output.isDone());
+            pacer.setShareRateLimit(0);
+            output.get(1,TimeUnit.SECONDS);
+        } finally {pool.shutdownNow();}
+    }
+
+    @Test public void stopWakesActiveAndQueuedOutput() throws Exception {
+        Pacer pacer=new Pacer();pacer.setShareRateLimit(1);
+        ExecutorService pool=Executors.newFixedThreadPool(2);
+        Callable<Boolean> output=()->{try{pacer.acquire(65536);return false;}catch(java.io.IOException expected){return true;}};
+        try {
+            Future<Boolean> first=pool.submit(output),second=pool.submit(output);
+            Thread.sleep(50);pacer.stop();
+            assertTrue(first.get(1,TimeUnit.SECONDS));assertTrue(second.get(1,TimeUnit.SECONDS));
+        } finally {pool.shutdownNow();}
     }
 
     @Test public void publicPolicyBlocksLocalNetworksAndMappedLoopback() throws Exception {

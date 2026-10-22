@@ -5,6 +5,7 @@ dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories { google(); mavenCentral() }
 }
-rootProject.name = 'Uzel'
+rootProject.name = 'Uzelio'
 include ':core', ':app'
 include ':routing-probe-vpn', ':routing-probe-direct'
+include ':desktop'

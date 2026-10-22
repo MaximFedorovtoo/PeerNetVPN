@@ -22,6 +22,7 @@ public final class DiscoveryStore {
     }
     public synchronized List<DiscoveryPresence> presences(long now){expire(now);return Collections.unmodifiableList(new ArrayList<>(presences.values()));}
     public synchronized List<DiscoverySignal> signalsFor(String fingerprint,long now){expire(now);List<DiscoverySignal> result=new ArrayList<>();for(DiscoverySignal s:signals.values())if(s.recipientFingerprint.equals(fingerprint))result.add(s);return Collections.unmodifiableList(result);}
+    public synchronized List<DiscoverySignal> signals(long now){expire(now);return Collections.unmodifiableList(new ArrayList<>(signals.values()));}
     public synchronized void clear(){presences.clear();signals.clear();}
     public synchronized byte[] exportFrame(long now)throws IOException {
         expire(now);List<byte[]> records=new ArrayList<>();

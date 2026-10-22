@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="sharing_rate_title">Velocità di condivisione</string>
+    <string name="sharing_rate_unlimited">Senza limiti</string>
+    <string name="sharing_rate_manual">Velocità personalizzata</string>
+    <string name="sharing_rate_unit">Mbit/s</string>
+    <string name="sharing_rate_effective">Limite: %1$s Mbit/s</string>
+    <string name="sharing_rate_minimum">Minimo: %1$s Mbit/s</string>
+    <string name="sharing_rate_minimum_unknown">Il minimo appare dopo la misurazione.</string>
+    <string name="sharing_rate_requested">Scelta: %1$s Mbit/s</string>
+    <string name="sharing_rate_edit">Modifica velocità</string>
+    <string name="sharing_rate_help">Scegli senza limiti o una velocità di almeno un terzo della velocità di invio misurata.</string>
+    <string name="sharing_rate_invalid">Inserisci una velocità positiva da %1$s a 1000000 Mbit/s.</string>
+</resources>

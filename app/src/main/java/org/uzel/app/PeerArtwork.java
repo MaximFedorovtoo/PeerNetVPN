@@ -10,7 +10,7 @@ import android.graphics.RectF;
 import android.graphics.Shader;
 import android.view.View;
 
-/** Small, dependency-free vector artwork used by the PeerNet interface. */
+/** Small, dependency-free vector artwork used by the Uzelio interface. */
 public final class PeerArtwork extends View {
     private static final float ART_SIZE = 100f;
     private static final int NAVY = Color.rgb(8, 21, 36);

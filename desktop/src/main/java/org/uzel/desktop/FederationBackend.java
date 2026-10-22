@@ -1,0 +1,226 @@
+package org.uzel.desktop;
+
+import org.uzel.core.*;
+import java.io.*;
+import java.net.*;
+import java.nio.file.Path;
+import java.util.*;
+import java.util.concurrent.*;
+import java.util.concurrent.locks.ReentrantLock;
+
+/** Independent directory, reciprocal exit and Windows routing lifecycles. Call network operations on a worker. */
+public final class FederationBackend implements DesktopBackend {
+    interface ApplicationRouting extends AutoCloseable {
+        WindowsAppRouter.Availability availability();
+        WindowsAppRouter.Snapshot snapshot();
+        void activate(List<Path> applications,DesktopTrafficService.ProxyEndpoint endpoint)throws IOException;
+        void deactivate()throws IOException;
+        void close();
+    }
+    private static ApplicationRouting windowsRouting(Path root){
+        WindowsAppRouter router=new WindowsAppRouter(root);
+        return new ApplicationRouting(){
+            public WindowsAppRouter.Availability availability(){return router.availability();}
+            public WindowsAppRouter.Snapshot snapshot(){return router.snapshot();}
+            public void activate(List<Path> apps,DesktopTrafficService.ProxyEndpoint proxy)throws IOException{router.activate(apps,proxy);}
+            public void deactivate()throws IOException{router.deactivate();}
+            public void close(){router.close();}
+        };
+    }
+    private record Peer(Invitation invitation,PeerRoute route,long expiresAt,String country,long sequence){}
+    private final Path root;
+    private final TlsIdentity identity;
+    private final DesktopTrafficService traffic;
+    private final ApplicationRouting router;
+    private final int trafficPort;
+    private final ReentrantLock operations=new ReentrantLock();
+    private final Object cancellationGate=new Object(),publicationGate=new Object();
+    private final ScheduledExecutorService maintenance;
+    private FederationNode node;
+    private DesktopConfig configuration;
+    private Snapshot stopped=new Snapshot(false,0,0,0,false,"");
+    private final Map<String,Peer> manualPeers=new LinkedHashMap<>(),discoveredPeers=new LinkedHashMap<>();
+    private List<Path> applications=List.of();
+    private DiscoveryIdentity discoveryIdentity;
+    private long directoryGeneration,sharingGeneration,connectionGeneration,establishedConnection;
+    private volatile long lastPublication,sharingOwner,connectionOwner;
+    private boolean closed;
+    private String advertisedHost="",backendError="";
+
+    public FederationBackend(Path root,TlsIdentity identity){this(root,identity,new DesktopTrafficService(identity),39281,windowsRouting(root));}
+    FederationBackend(Path root,TlsIdentity identity,DesktopTrafficService traffic,int trafficPort){this(root,identity,traffic,trafficPort,windowsRouting(root));}
+    FederationBackend(Path root,TlsIdentity identity,DesktopTrafficService traffic,int trafficPort,ApplicationRouting router){
+        this.root=Objects.requireNonNull(root);this.identity=Objects.requireNonNull(identity);this.traffic=Objects.requireNonNull(traffic);this.router=Objects.requireNonNull(router);
+        if(trafficPort<0 || trafficPort>65535)throw new IllegalArgumentException("Traffic port");this.trafficPort=trafficPort;
+        try{applications=DesktopApplications.load(root);}catch(IOException invalid){backendError="Выберите приложения заново: сохранённый файл недоступен";}
+        maintenance=Executors.newSingleThreadScheduledExecutor(task->{Thread thread=new Thread(task,"uzelio-desktop-sharing");thread.setDaemon(true);return thread;});
+        maintenance.scheduleWithFixedDelay(this::tick,1,1,TimeUnit.SECONDS);
+    }
+    public void start(DesktopConfig config)throws Exception {
+        final long epoch;
+        synchronized(this){if(closed)throw new IOException("Backend closed");if(node!=null)return;configuration=config;epoch=++directoryGeneration;}
+        FederationNode candidate=new FederationNode(identity,root,InetAddress.getByName("0.0.0.0"),config.port(),config.advertisedHost(),config.allowPrivate());
+        try{
+            candidate.start();synchronized(this){if(closed || epoch!=directoryGeneration)throw new InterruptedIOException("Directory start cancelled");node=candidate;candidate=null;}
+            publishOwn();
+        }finally{if(candidate!=null)candidate.close();}
+    }
+    public void stop(){
+        stopSharing();final FederationNode previous;
+        synchronized(this){++directoryGeneration;previous=node;node=null;discoveredPeers.clear();}
+        if(previous!=null){FederationNode.Snapshot state=previous.snapshot();String error="";try{previous.close();}catch(IOException e){error="Не удалось сохранить каталог";}
+            synchronized(this){if(node==null)stopped=new Snapshot(false,state.contacts.size(),0,0,state.capacityLimited,error);}}
+    }
+    private synchronized FederationNode requireDirectory()throws IOException {if(node==null)throw new IOException("Сначала запустите сеть на главной");return node;}
+    public void addContact(String code)throws Exception {requireDirectory().addContact(code);}
+    public String ownCode()throws Exception {return requireDirectory().ownContact().encode();}
+    public Snapshot snapshot(){
+        FederationNode current;Snapshot previous;String error;synchronized(this){current=node;previous=stopped;error=backendError;}
+        if(current==null)return error.isEmpty()?previous:new Snapshot(false,previous.knownContacts(),0,0,previous.capacityLimited(),error);
+        FederationNode.Snapshot state=current.snapshot();return new Snapshot(state.running,state.contacts.size(),devices().size(),state.connectedNeighbors,state.capacityLimited,error.isEmpty()?state.lastError:error);
+    }
+    public List<DeviceDirectoryView.Device> devices(){
+        FederationNode current;synchronized(this){current=node;}
+        FederationNode.Snapshot state=current==null?null:current.snapshot();if(state!=null)importRoutes(current,state.routes);
+        long now=System.currentTimeMillis();Map<String,DeviceDirectoryView.Device> result=new TreeMap<>();
+        synchronized(this){
+            discoveredPeers.values().removeIf(peer->peer.expiresAt()<=now);
+            manualPeers.forEach((fingerprint,peer)->result.put(fingerprint,new DeviceDirectoryView.Device(fingerprint,peer.country(),0,0,peer.expiresAt())));
+            discoveredPeers.forEach((fingerprint,peer)->result.put(fingerprint,new DeviceDirectoryView.Device(fingerprint,peer.country(),0,0,peer.expiresAt())));
+        }
+        if(state!=null)for(DeviceDirectoryView.Device device:DeviceDirectoryView.fromPresences(state.presences,now))result.put(device.fingerprint(),device);
+        result.remove(identity.fingerprint);return List.copyOf(result.values());
+    }
+    private void importRoutes(FederationNode expected,List<PeerDirectory.Record> routes){
+        final Map<String,Peer> known;
+        synchronized(this){if(node!=expected)return;known=new HashMap<>(discoveredPeers);}
+        long now=System.currentTimeMillis();Map<String,Peer> verified=new LinkedHashMap<>();
+        for(PeerDirectory.Record input:routes)try{
+            Peer previous=known.get(input.fingerprint);if(previous!=null && previous.sequence()>=input.sequence)continue;
+            PeerDirectory.Record record=PeerDirectory.Record.parse(input.encode());
+            if(!record.fingerprint.equals(identity.fingerprint) && record.issuedAt<=now+30_000 && record.expiresAt>now)
+                verified.put(record.fingerprint,new Peer(null,record.route,record.expiresAt,record.country,record.sequence));
+        }catch(IOException ignored){}
+        synchronized(this){
+            if(node!=expected)return;discoveredPeers.values().removeIf(peer->peer.expiresAt()<=now);
+            verified.forEach((fingerprint,peer)->{Peer previous=discoveredPeers.get(fingerprint);
+                if((previous==null || peer.sequence()>previous.sequence()) && (previous!=null || discoveredPeers.size()<256))discoveredPeers.put(fingerprint,peer);});
+        }
+    }
+    public SearchResult refreshDevices()throws Exception {
+        FederationNode current=requireDirectory();FederationNode.LookupResult result=current.lookup();importRoutes(current,result.routes);return new SearchResult(result.visitedServers,result.partial);
+    }
+    public void startSharing()throws Exception {
+        final long epoch;synchronized(this){if(closed)throw new IOException("Backend closed");epoch=++sharingGeneration;}
+        operations.lock();
+        try{
+            synchronized(this){if(closed || sharingGeneration!=epoch)throw new InterruptedIOException("Sharing start cancelled");}
+            if(traffic.snapshot().sharing())return;
+            SharingRatePreference preference=SharingRatePreference.load(root);traffic.setShareRatePreference(preference);
+            DesktopConfig config;synchronized(this){config=configuration;}
+            if(config==null)config=DesktopConfig.load(root);String host=sharingHost(config.advertisedHost());
+            synchronized(cancellationGate){synchronized(this){if(closed || sharingGeneration!=epoch)throw new InterruptedIOException("Sharing start cancelled");}sharingOwner=epoch;}
+            try{
+                traffic.startSharing(trafficPort);
+                synchronized(this){if(closed || sharingGeneration!=epoch)throw new InterruptedIOException("Sharing start cancelled");advertisedHost=host;backendError="";}
+                Node current=traffic.node();current.setAdvertisedRoute(current.publicRoute(host));publishOwn();
+            }catch(Exception failure){stopOwnedSharing(epoch);throw failure;}
+        }finally{operations.unlock();}
+    }
+    private static String sharingHost(String configured)throws SocketException {
+        if(!configured.equalsIgnoreCase("localhost") && !configured.equals("0.0.0.0") && !configured.equals("::"))return configured;
+        Enumeration<NetworkInterface> interfaces=NetworkInterface.getNetworkInterfaces();
+        while(interfaces!=null && interfaces.hasMoreElements()){
+            NetworkInterface network=interfaces.nextElement();if(!network.isUp() || network.isLoopback())continue;
+            Enumeration<InetAddress> addresses=network.getInetAddresses();while(addresses.hasMoreElements()){
+                InetAddress address=addresses.nextElement();if(address instanceof Inet4Address && !address.isLoopbackAddress() && !address.isLinkLocalAddress())return address.getHostAddress();
+            }
+        }
+        return "127.0.0.1";
+    }
+    public void stopSharing(){long owner;synchronized(this){++sharingGeneration;owner=sharingOwner;advertisedHost="";}disconnect();stopOwnedSharing(owner);}
+    private void stopOwnedSharing(long owner){synchronized(cancellationGate){if(sharingOwner!=owner && sharingOwner!=0)return;sharingOwner=0;traffic.stopSharing();}}
+    public void measureUpload()throws Exception {
+        operations.lock();try{disconnect();traffic.remeasure();publishOwn();}finally{operations.unlock();}
+    }
+    public void setSharingRate(SharingRatePreference choice)throws Exception {
+        operations.lock();try{
+            SharingRatePreference previous=new SharingRatePreference(traffic.snapshot().requestedShareRateLimit());traffic.setShareRatePreference(choice);
+            try{choice.save(root);}catch(IOException failure){traffic.setShareRatePreference(previous);throw failure;}
+        }finally{operations.unlock();}
+    }
+    public String sharingCode()throws Exception {String host;synchronized(this){host=advertisedHost;}if(!traffic.snapshot().sharing() || host.isEmpty())throw new IOException("Сначала включите раздачу");return traffic.invitation(host).encode();}
+    public void addTrafficPeer(String code)throws Exception {
+        Invitation invitation=null;PeerRoute route=null;
+        if(code!=null && code.trim().startsWith("uzel-public://"))route=PeerRoute.parse(code.trim());else invitation=Invitation.parse(code==null?null:code.trim());
+        String fingerprint=invitation==null?route.fingerprint:invitation.fingerprint;
+        if(fingerprint.equals(identity.fingerprint))throw new IOException("Это код этого компьютера");
+        synchronized(this){if(manualPeers.size()>=256 && !manualPeers.containsKey(fingerprint))throw new IOException("Список устройств заполнен");manualPeers.put(fingerprint,new Peer(invitation,route,Long.MAX_VALUE,"",0));}
+    }
+    private synchronized Peer peer(String fingerprint){Peer manual=manualPeers.get(fingerprint);if(manual!=null)return manual;Peer found=discoveredPeers.get(fingerprint);return found!=null && found.expiresAt()>System.currentTimeMillis()?found:null;}
+    public boolean canConnect(String fingerprint){
+        boolean selected;synchronized(this){selected=!applications.isEmpty() && !closed;}
+        DesktopTrafficService.Snapshot state=traffic.snapshot();return selected && peer(fingerprint)!=null && state.sharing() && !state.measuring() && state.measuredUpload()>0 && router.availability().installed();
+    }
+    public void connect(String fingerprint)throws Exception {
+        final long epoch;synchronized(this){if(closed)throw new IOException("Backend closed");epoch=++connectionGeneration;}
+        operations.lock();
+        try{
+            if(!canConnect(fingerprint))throw new IOException("Нужны раздача, измерение, выбранные приложения и установленный Windows-модуль");
+            Peer target=peer(fingerprint);if(target==null)throw new IOException("Маршрут устройства истёк");List<Path> selected=DesktopApplications.canonicalSelection(selectedApplications());
+            try{
+                synchronized(cancellationGate){requireConnectionEpoch(epoch);connectionOwner=epoch;synchronized(this){establishedConnection=0;}traffic.disconnect();router.deactivate();}
+                requireConnectionEpoch(epoch);Runnable lost=()->peerLost(epoch);
+                if(target.invitation()!=null)traffic.connect(target.invitation(),lost);else traffic.connect(target.route(),lost);
+                requireConnectionEpoch(epoch);DesktopTrafficService.ProxyEndpoint endpoint=traffic.localProxy();if(endpoint==null)throw new IOException("Peer disconnected");
+                router.activate(selected,endpoint);requireConnectionEpoch(epoch);
+                if(!router.snapshot().active() || !traffic.snapshot().connected())throw new IOException("Windows routing or peer unavailable");
+                synchronized(this){if(closed || connectionGeneration!=epoch)throw new InterruptedIOException("Connection cancelled");establishedConnection=epoch;backendError="";}
+            }catch(Exception failure){cancelOwnedConnection(epoch);throw failure;}
+        }finally{operations.unlock();}
+    }
+    private synchronized void requireConnectionEpoch(long epoch)throws IOException {if(closed || connectionGeneration!=epoch)throw new InterruptedIOException("Connection cancelled");}
+    private void peerLost(long epoch){cancelOwnedConnection(epoch);}
+    private void cancelOwnedConnection(long owner){
+        synchronized(cancellationGate){
+            if(connectionOwner!=owner && connectionOwner!=0)return;connectionOwner=0;
+            synchronized(this){if(connectionGeneration==owner)++connectionGeneration;if(establishedConnection==owner)establishedConnection=0;}
+            traffic.disconnect();try{router.deactivate();}catch(IOException failure){synchronized(this){backendError="Не удалось остановить Windows-модуль";}}
+        }
+    }
+    public void disconnect(){long owner;synchronized(this){++connectionGeneration;establishedConnection=0;owner=connectionOwner;}cancelOwnedConnection(owner);}
+    public DesktopTrafficService.Snapshot traffic(){
+        DesktopTrafficService.Snapshot state=traffic.snapshot();long established;synchronized(this){established=establishedConnection;}
+        boolean connected=established!=0 && established==connectionOwner && state.connected() && router.snapshot().active();
+        return new DesktopTrafficService.Snapshot(state.sharing(),connected,state.measuring(),state.sharedBytes(),state.receivedBytes(),state.measuredUpload(),state.shareRateLimit(),state.requestedShareRateLimit(),state.clients(),state.country(),state.connected() && !connected?"CONNECTING":state.status());
+    }
+    public synchronized List<Path> selectedApplications(){return applications;}
+    public void selectApplications(List<Path> selected)throws Exception {
+        List<Path> canonical=DesktopApplications.canonicalSelection(selected);operations.lock();
+        try{disconnect();DesktopApplications.save(root,canonical);synchronized(this){applications=canonical;backendError="";}}finally{operations.unlock();}
+    }
+    public WindowsAppRouter.Availability routingAvailability(){return router.availability();}
+    public WindowsAppRouter.Snapshot routingState(){return router.snapshot();}
+
+    private void tick(){
+        try{
+            long established;synchronized(this){if(closed)return;established=establishedConnection;}
+            if(established!=0 && (!router.snapshot().active() || !traffic.snapshot().connected()))cancelOwnedConnection(established);
+            if(System.currentTimeMillis()-lastPublication>=30_000)publishOwn();
+        }catch(Exception ignored){}
+    }
+    private void publishOwn()throws IOException {
+        synchronized(publicationGate){
+            final FederationNode directory;final String host;final long epoch;
+            synchronized(this){directory=node;host=advertisedHost;epoch=sharingGeneration;if(closed)return;}
+            DesktopTrafficService.Snapshot state=traffic.snapshot();if(directory==null || host.isEmpty() || !state.sharing() || state.measuredUpload()<=0)return;
+            if(discoveryIdentity==null)discoveryIdentity=new DiscoveryIdentity(identity);
+            long now=System.currentTimeMillis();DiscoveryPresence own=discoveryIdentity.presence(state.country(),state.clients(),state.measuredUpload(),now);
+            Node current=traffic.node();PeerDirectory.Record route=current.publish(current.publicRoute(host));
+            synchronized(this){if(node!=directory || sharingGeneration!=epoch || closed)return;}
+            // Only freshly signed OWN data enters publication stores. Lookup results remain observations.
+            directory.discoveryStore().accept(own,now);directory.acceptRoute(route);lastPublication=now;
+        }
+    }
+    public void close(){synchronized(this){if(closed)return;closed=true;}maintenance.shutdownNow();stop();traffic.close();router.close();}
+}

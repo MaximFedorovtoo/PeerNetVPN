@@ -1,0 +1,28 @@
+package org.uzel.desktop;
+
+public interface DesktopBackend extends AutoCloseable {
+    record Snapshot(boolean running,int knownContacts,int devices,int connectedNeighbors,boolean capacityLimited,String lastError){}
+    void start(DesktopConfig config)throws Exception;
+    void stop();
+    void addContact(String code)throws Exception;
+    String ownCode()throws Exception;
+    Snapshot snapshot();
+    default java.util.List<DeviceDirectoryView.Device> devices(){return java.util.List.of();}
+    record SearchResult(int visitedServers,boolean partial){}
+    SearchResult refreshDevices()throws Exception;
+    DesktopTrafficService.Snapshot traffic();
+    void startSharing()throws Exception;
+    void stopSharing();
+    void measureUpload()throws Exception;
+    void setSharingRate(SharingRatePreference preference)throws Exception;
+    String sharingCode()throws Exception;
+    void addTrafficPeer(String code)throws Exception;
+    boolean canConnect(String fingerprint);
+    void connect(String fingerprint)throws Exception;
+    void disconnect();
+    java.util.List<java.nio.file.Path> selectedApplications();
+    void selectApplications(java.util.List<java.nio.file.Path> applications)throws Exception;
+    WindowsAppRouter.Availability routingAvailability();
+    WindowsAppRouter.Snapshot routingState();
+    void close();
+}

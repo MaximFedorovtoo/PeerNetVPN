@@ -38,7 +38,7 @@ public final class UzelVpnService extends VpnService {
     }
     synchronized void startTunnel(LocalSocks proxy,Network network)throws Exception {
         stopTunnel();
-        Builder builder=new Builder().setSession("PeerNet").setMtu(1280)
+        Builder builder=new Builder().setSession("Uzelio").setMtu(1280)
                 .addAddress("198.18.0.1",32).addRoute("0.0.0.0",0)
                 .addAddress("fd00:757a:656c::1",128).addRoute("::",0)
                 .addDnsServer("1.1.1.1").addDnsServer("2606:4700:4700::1111")

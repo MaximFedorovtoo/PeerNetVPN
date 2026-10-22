@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="sharing_rate_title">共享速度</string>
+    <string name="sharing_rate_unlimited">不限速</string>
+    <string name="sharing_rate_manual">自定义速度</string>
+    <string name="sharing_rate_unit">Mbit/s</string>
+    <string name="sharing_rate_effective">上限：%1$s Mbit/s</string>
+    <string name="sharing_rate_minimum">最低：%1$s Mbit/s</string>
+    <string name="sharing_rate_minimum_unknown">测速后显示最低速度。</string>
+    <string name="sharing_rate_requested">已选：%1$s Mbit/s</string>
+    <string name="sharing_rate_edit">更改速度</string>
+    <string name="sharing_rate_help">选择不限速，或设置不低于实测上传速度三分之一的速度。</string>
+    <string name="sharing_rate_invalid">请输入 %1$s 至 1000000 Mbit/s 之间的正数速度。</string>
+</resources>

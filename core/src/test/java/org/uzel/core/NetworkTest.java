@@ -126,9 +126,52 @@ public class NetworkTest {
         Node a=node(0), b=node(1);
         long bytesPerSecond=a.measure(b.invitation("127.0.0.1"));
         assertTrue(bytesPerSecond>0);
-        assertEquals(bytesPerSecond/3,a.limit());
+        assertEquals(bytesPerSecond,a.measuredUpload());
+        assertEquals(0,a.limit());
         assertEquals(0,a.sharedBytes.get());
         assertEquals(0,b.sharedBytes.get());
+    }
+    @Test public void manualRateSurvivesMeasurementAndUsesRoundedUpMinimum() throws Exception {
+        Node a=node(0);
+        assertEquals(0,a.limit());
+        assertEquals(1_000_000,a.minimumShareRateLimit());
+        a.setShareRateLimit(2_000_000);
+        a.setMeasuredUpload(4_000_001);
+        assertEquals(1_333_334,a.minimumShareRateLimit());
+        assertEquals(2_000_000,a.limit());
+        try{a.setShareRateLimit(1_333_333);fail("below minimum");}catch(IllegalArgumentException expected){}
+        assertEquals(2_000_000,a.limit());
+        a.setMeasuredUpload(9_000_001);
+        assertEquals(3_000_001,a.limit());
+        assertEquals(2_000_000,a.requestedShareRateLimit());
+        a.setMeasuredUpload(3_000_000);
+        assertEquals(2_000_000,a.limit());
+        a.setShareRateLimit(0);a.setMeasuredUpload(9_000_001);
+        assertEquals(0,a.limit());
+        try{a.setShareRateLimit(-1);fail("negative rate");}catch(IllegalArgumentException expected){}
+        assertEquals(0,a.limit());
+    }
+    @Test public void manualRateCanBeRestoredBeforeMeasurement() throws Exception {
+        Node a=node(0);a.setMeasuredUpload(0);
+        a.setShareRateLimit(50_000);assertEquals(50_000,a.limit());
+        assertEquals(0,a.minimumShareRateLimit());
+        try{a.pump(new ByteArrayInputStream(new byte[]{1}),new ByteArrayOutputStream(),true,null);fail("measurement required even with a manual limit");}
+        catch(IOException expected){}
+        a.setMeasuredUpload(300_001);assertEquals(100_001,a.limit());
+        assertEquals(50_000,a.requestedShareRateLimit());
+    }
+    @Test public void publicRevocationWakesSlowPacedStreams() throws Exception {
+        Node a=node(0);a.setMeasuredUpload(3);a.setShareRateLimit(1);
+        ExecutorService pool=Executors.newSingleThreadExecutor();
+        try {
+            Future<Boolean> output=pool.submit(()->{
+                try{a.pump(new ByteArrayInputStream(new byte[2048]),new ByteArrayOutputStream(),true,null);return false;}
+                catch(IOException expected){return true;}
+            });
+            Thread.sleep(50);assertFalse(output.isDone());
+            a.stopPublicAdmission();
+            assertTrue(output.get(1,TimeUnit.SECONDS));
+        } finally {pool.shutdownNow();}
     }
     @Test public void fragmentedAndTruncatedSocksDatagramsAreRejected() throws Exception {
         for(byte[] bytes:new byte[][]{new byte[0],new byte[]{0,0,1,1,127,0,0,1,0,53},

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">PeerNet</string>
+    <string name="app_name">Uzelio</string>
     <string name="home">首页</string>
     <string name="nodes">节点</string>
     <string name="statistics">统计</string>
@@ -14,7 +14,7 @@
     <string name="start_sharing">开始共享</string>
     <string name="stop_sharing">停止共享</string>
     <string name="fair_title">三分之一带宽用于网络</string>
-    <string name="fair_explanation">共享速度上限为实测上传速度的三分之一。这里显示的是流量统计，并非积分余额。</string>
+    <string name="fair_explanation">可选择不限速，或设置不低于实测上传速度三分之一的速度。计数器显示流量统计。</string>
     <string name="clients">已连接设备：%1$d / 3</string>
     <string name="share_limit">共享上限：%1$s</string>
     <string name="address">IP：%1$s · %2$s</string>
@@ -74,11 +74,11 @@
     <string name="invalid_host">地址无效。请仅输入 IP 地址或 DNS 名称，不含端口。</string>
     <string name="saved">已保存</string>
     <string name="notification_channel">节点连接</string>
-    <string name="notification_title">PeerNet</string>
+    <string name="notification_title">Uzelio</string>
     <string name="notification_text">节点服务正在运行。点按以打开。</string>
     <string name="notification_stop">停止</string>
     <string name="vpn_apps">使用 VPN 的应用</string>
-    <string name="vpn_apps_help">只有选中的应用使用 VPN，其他应用直接联网。请至少选择一个应用。列表仅显示可启动且可访问互联网的应用，不包括 PeerNet。保存会断开已连接或正在连接的 VPN。请重新连接以应用选择。</string>
+    <string name="vpn_apps_help">只有选中的应用使用 VPN，其他应用直接联网。请至少选择一个应用。列表仅显示可启动且可访问互联网的应用，不包括 Uzelio。保存会断开已连接或正在连接的 VPN。请重新连接以应用选择。</string>
     <string name="apps_selected">已选择应用：%1$d</string>
     <string name="choose_apps">选择应用</string>
     <string name="apps_required">连接前，请在设置中至少选择一个已安装的应用。选择为空时无法启动 VPN。</string>

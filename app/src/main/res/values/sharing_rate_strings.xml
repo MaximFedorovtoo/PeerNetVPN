@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="sharing_rate_title">Sharing speed</string>
+    <string name="sharing_rate_unlimited">Unlimited</string>
+    <string name="sharing_rate_manual">Custom speed</string>
+    <string name="sharing_rate_unit">Mbit/s</string>
+    <string name="sharing_rate_effective">Limit: %1$s Mbit/s</string>
+    <string name="sharing_rate_minimum">Minimum: %1$s Mbit/s</string>
+    <string name="sharing_rate_minimum_unknown">Minimum appears after the speed test.</string>
+    <string name="sharing_rate_requested">Selected: %1$s Mbit/s</string>
+    <string name="sharing_rate_edit">Change speed</string>
+    <string name="sharing_rate_help">Choose unlimited or a speed of at least one third of your measured upload.</string>
+    <string name="sharing_rate_invalid">Enter a positive speed from %1$s to 1000000 Mbit/s.</string>
+</resources>

@@ -19,6 +19,10 @@ final class AutoDiscoveryManager implements AutoCloseable {
     private final PhysicalNetwork physical;
     private final PairingManager pairing;
     private final DiscoveryIdentity identity;
+    private final TlsIdentity tlsIdentity;
+    private final DirectoryContacts directoryContacts;
+    private final DirectoryFailover failover=new DirectoryFailover();
+    private volatile Socket activeDirectorySocket;
     private final DiscoveryStore store=new DiscoveryStore();
     private final Supplier<List<Invitation>> contacts;
     private final Listener listener;
@@ -48,7 +52,8 @@ final class AutoDiscoveryManager implements AutoCloseable {
                          String url,boolean hosting,Supplier<List<Invitation>> contacts,Listener listener)throws Exception {
         this.node=node;this.physical=physical;this.pairing=pairing;this.url=validateUrl(url);
         this.hosting=hosting;this.contacts=contacts;this.listener=listener;
-        identity=new DiscoveryIdentity(DeviceIdentity.load());
+        tlsIdentity=DeviceIdentity.load();identity=new DiscoveryIdentity(tlsIdentity);
+        directoryContacts=new DirectoryContacts(context);
         ownFingerprint=node.invitation("127.0.0.1").fingerprint;
         LinkProperties properties=context.getSystemService(ConnectivityManager.class).getLinkProperties(physical.network);
         InetAddress bind=null;
@@ -83,7 +88,10 @@ final class AutoDiscoveryManager implements AutoCloseable {
     boolean hosting(){return server!=null;}
     int port(){BootstrapHttpServer current=server;return current==null?0:current.port();}
     void configure(String value,boolean host){url=validateUrl(value);hosting=host;cancelRequest();execute(this::cycle);}
-    private boolean enabled(){return !closed&&node.isSharing()&&(!url.isEmpty()||hosting||!contacts.get().isEmpty());}
+    private boolean enabled(){return !closed&&node.isSharing()&&(!url.isEmpty()||hosting||!contacts.get().isEmpty()||!directoryContacts.list().isEmpty());}
+    void addDirectoryContact(String code)throws IOException{directoryContacts.add(code);execute(this::cycle);}
+    int directoryContactCount(){return directoryContacts.list().size();}
+    void allowPrivateDirectories(boolean enabled){directoryContacts.setAllowPrivate(enabled);cancelRequest();execute(this::cycle);}
     void cancel(String fingerprint){cancellations.incrementAndGet();if(pending.equals(fingerprint)){pending="";pendingAttempt=attempts.incrementAndGet();}pairing.cancelTargeted(fingerprint);}
     private void paired(String fingerprint,long attempt){execute(()->{if(pending.equals(fingerprint)&&pendingAttempt==attempt){pending="";pendingUntil=0;state="ONLINE";}});}
     void connect(DiscoveryPresence recipient){long cancellation=cancellations.get();execute(()->{
@@ -131,11 +139,22 @@ final class AutoDiscoveryManager implements AutoCloseable {
             }
             processSignals(now);
             boolean exchanged=false;
-            String endpoint=url;
-            if(!endpoint.isEmpty())try{
-                byte[] response=post(endpoint,store.exportFrame(now));
-                if(closed)return;store.ingestFrame(response,System.currentTimeMillis());exchanged=true;
-            }catch(IOException ignored){}
+            Map<String,FederationContact> directoryServers=new LinkedHashMap<>();
+            List<String> candidates=new ArrayList<>();
+            for(FederationContact contact:directoryContacts.list()){directoryServers.put(contact.fingerprint,contact);candidates.add(contact.fingerprint);}
+            String endpoint=url;if(!endpoint.isEmpty())candidates.add(endpoint);
+            int tried=0;
+            for(String key:failover.order(candidates,android.os.SystemClock.elapsedRealtime())){
+                if(closed||tried++>=3)break;
+                try{
+                    FederationContact contact=directoryServers.get(key);
+                    byte[] response;
+                    if(contact==null)response=post(key,store.exportFrame(System.currentTimeMillis()));
+                    else response=exchangeDirectory(contact);
+                    if(closed)return;store.ingestFrame(response,System.currentTimeMillis());
+                    failover.succeeded(key);exchanged=true;break;
+                }catch(IOException unavailable){failover.failed(key,android.os.SystemClock.elapsedRealtime());}
+            }
             List<Invitation> peers=contacts.get();
             for(int attempt=0;attempt<Math.min(2,peers.size())&&!closed;attempt++){
                 Invitation peer=peers.get(Math.floorMod(cursor++,peers.size()));
@@ -197,6 +216,20 @@ final class AutoDiscoveryManager implements AutoCloseable {
             }
         }finally{if(deadline!=null)deadline.cancel(false);if(activeRequest==connection)activeRequest=null;connection.disconnect();}
     }
+    private byte[] exchangeDirectory(FederationContact contact)throws IOException {
+        InetSocketAddress address=contact.address(physical.resolve(contact.host),directoryContacts.allowPrivate());
+        try(Socket socket=physical.open(address.getAddress(),address.getPort())){
+            activeDirectorySocket=socket;
+            if(closed)throw new InterruptedIOException("Closed");
+            ScheduledFuture<?> deadline=watchdog.schedule(()->{try{socket.close();}catch(IOException ignored){}},12,TimeUnit.SECONDS);
+            try{
+                FederationExchange.Result result=FederationExchange.exchange(tlsIdentity,socket,contact,store.exportFrame(System.currentTimeMillis()));
+                if(closed)throw new InterruptedIOException("Closed");
+                directoryContacts.merge(result.contacts);
+                return result.discoveryFrame;
+            }finally{deadline.cancel(false);activeDirectorySocket=null;}
+        }
+    }
     private void updateHosting()throws IOException {
         if((!hosting||!node.isSharing())&&server!=null){BootstrapHttpServer old=server;server=null;old.close();}
         if(hosting&&node.isSharing()&&server==null){
@@ -207,7 +240,7 @@ final class AutoDiscoveryManager implements AutoCloseable {
             });
         }
     }
-    private void cancelRequest(){HttpURLConnection current=activeRequest;if(current!=null)try{watchdog.execute(current::disconnect);}catch(RejectedExecutionException ignored){}}
+    private void cancelRequest(){Socket socket=activeDirectorySocket;if(socket!=null)try{socket.close();}catch(IOException ignored){}HttpURLConnection current=activeRequest;if(current!=null)try{watchdog.execute(current::disconnect);}catch(RejectedExecutionException ignored){}}
     private void execute(Runnable task){if(!closed)try{worker.execute(()->{if(!closed)task.run();});}catch(RejectedExecutionException ignored){}}
     @Override public void close(){
         if(closed)return;closed=true;node.setDiscoveryExchange(null);cancelRequest();watchdog.shutdown();

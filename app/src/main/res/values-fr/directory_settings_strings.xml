@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="directory_contacts_title">Contacts réseau</string>
+    <string name="directory_code_add">Ajouter un code serveur</string>
+    <string name="directory_code_hint">Code du serveur</string>
+    <string name="directory_code_invalid">Code invalide ou liste pleine</string>
+    <string name="directory_private">Autoriser les serveurs locaux</string>
+    <string name="directory_private_hint">À activer uniquement sur un réseau local de confiance.</string>
+</resources>
