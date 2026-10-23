@@ -71,10 +71,14 @@ public final class LiveDeviceTest extends InstrumentationTestCase {
             assertFalse("Choose at least one installed probe application",AppSelection.validPackages(context).isEmpty());
         }
         long deadline=System.nanoTime()+hold*1_000_000_000L;
-        boolean clicked=false;
+        boolean clicked=false,connectionTimed=false;
+        long connectionStarted=0;
         do {
             NodeController.Snapshot snapshot=controller.snapshot();
-            if("connect".equals(action)&&!clicked&&snapshot.sharing&&!snapshot.busy) {
+            boolean targetPresent=false;
+            for(NodeController.Peer peer:snapshot.peers)if(peer.id.equals(peerId))targetPresent=true;
+            if("connect".equals(action)&&!clicked&&snapshot.sharing&&!snapshot.busy&&targetPresent) {
+                connectionStarted=System.nanoTime();
                 final Activity owner=activity;
                 final String target=peerId;
                 // Invoke the real app handler. It opens the normal Android VPN consent
@@ -90,7 +94,12 @@ public final class LiveDeviceTest extends InstrumentationTestCase {
                 });
                 clicked=true;
             }
-            emit(controller.snapshot(),emitContacts);
+            NodeController.Snapshot current=controller.snapshot();
+            if(clicked&&!connectionTimed&&current.vpnConnected){
+                event("CONNECTED_AFTER_MS="+((System.nanoTime()-connectionStarted)/1_000_000L));
+                connectionTimed=true;
+            }
+            emit(current,emitContacts);
             if(System.nanoTime()>=deadline)break;
             Thread.sleep(Math.min(2000,Math.max(1,(deadline-System.nanoTime())/1_000_000L)));
         }while(true);

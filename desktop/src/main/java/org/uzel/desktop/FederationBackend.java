@@ -17,6 +17,7 @@ public final class FederationBackend implements DesktopBackend {
         void deactivate()throws IOException;
         void close();
     }
+    @FunctionalInterface interface PairingFactory {DesktopPairingManager create(Node node,TlsIdentity identity,DiscoveryIdentity discoveryIdentity,DesktopDiscoveryClient discovery,DesktopPairingManager.Listener listener);}
     private static ApplicationRouting windowsRouting(Path root){
         WindowsAppRouter router=new WindowsAppRouter(root);
         return new ApplicationRouting(){
@@ -32,6 +33,8 @@ public final class FederationBackend implements DesktopBackend {
     private final TlsIdentity identity;
     private final DesktopTrafficService traffic;
     private final ApplicationRouting router;
+    private final DesktopDiscoveryClient discovery;
+    private final PairingFactory pairingFactory;
     private final int trafficPort;
     private final ReentrantLock operations=new ReentrantLock();
     private final Object cancellationGate=new Object(),publicationGate=new Object();
@@ -42,15 +45,21 @@ public final class FederationBackend implements DesktopBackend {
     private final Map<String,Peer> manualPeers=new LinkedHashMap<>(),discoveredPeers=new LinkedHashMap<>();
     private List<Path> applications=List.of();
     private DiscoveryIdentity discoveryIdentity;
+    private volatile DesktopPairingManager pairing;
     private long directoryGeneration,sharingGeneration,connectionGeneration,establishedConnection;
     private volatile long lastPublication,sharingOwner,connectionOwner;
     private boolean closed;
-    private String advertisedHost="",backendError="";
+    private String advertisedHost="",backendError="",connectionTarget="";
 
-    public FederationBackend(Path root,TlsIdentity identity){this(root,identity,new DesktopTrafficService(identity),39281,windowsRouting(root));}
+    public FederationBackend(Path root,TlsIdentity identity){this(root,identity,new DesktopTrafficService(identity),39281,windowsRouting(root),DesktopDiscoveryClient.configured(root,identity.fingerprint));}
+    FederationBackend(Path root,TlsIdentity identity,DesktopDiscoveryClient discovery){this(root,identity,new DesktopTrafficService(identity),39281,windowsRouting(root),discovery);}
     FederationBackend(Path root,TlsIdentity identity,DesktopTrafficService traffic,int trafficPort){this(root,identity,traffic,trafficPort,windowsRouting(root));}
-    FederationBackend(Path root,TlsIdentity identity,DesktopTrafficService traffic,int trafficPort,ApplicationRouting router){
+    FederationBackend(Path root,TlsIdentity identity,DesktopTrafficService traffic,int trafficPort,ApplicationRouting router){this(root,identity,traffic,trafficPort,router,DesktopDiscoveryClient.disabled(identity.fingerprint));}
+    FederationBackend(Path root,TlsIdentity identity,DesktopTrafficService traffic,int trafficPort,ApplicationRouting router,DesktopDiscoveryClient discovery){this(root,identity,traffic,trafficPort,router,discovery,DesktopPairingManager::new);}
+    FederationBackend(Path root,TlsIdentity identity,DesktopTrafficService traffic,int trafficPort,ApplicationRouting router,DesktopDiscoveryClient discovery,PairingFactory pairingFactory){
         this.root=Objects.requireNonNull(root);this.identity=Objects.requireNonNull(identity);this.traffic=Objects.requireNonNull(traffic);this.router=Objects.requireNonNull(router);
+        this.discovery=Objects.requireNonNull(discovery);this.discovery.setPublisher(this::ownPresence);
+        this.pairingFactory=Objects.requireNonNull(pairingFactory);
         if(trafficPort<0 || trafficPort>65535)throw new IllegalArgumentException("Traffic port");this.trafficPort=trafficPort;
         try{applications=DesktopApplications.load(root);}catch(IOException invalid){backendError="Выберите приложения заново: сохранённый файл недоступен";}
         maintenance=Executors.newSingleThreadScheduledExecutor(task->{Thread thread=new Thread(task,"uzelio-desktop-sharing");thread.setDaemon(true);return thread;});
@@ -63,10 +72,12 @@ public final class FederationBackend implements DesktopBackend {
         try{
             candidate.start();synchronized(this){if(closed || epoch!=directoryGeneration)throw new InterruptedIOException("Directory start cancelled");node=candidate;candidate=null;}
             publishOwn();
+            synchronized(this){if(closed || epoch!=directoryGeneration || node==null)return;discovery.resume();}
+            discovery.refresh();
         }finally{if(candidate!=null)candidate.close();}
     }
     public void stop(){
-        stopSharing();final FederationNode previous;
+        stopSharing();discovery.pause();final FederationNode previous;
         synchronized(this){++directoryGeneration;previous=node;node=null;discoveredPeers.clear();}
         if(previous!=null){FederationNode.Snapshot state=previous.snapshot();String error="";try{previous.close();}catch(IOException e){error="Не удалось сохранить каталог";}
             synchronized(this){if(node==null)stopped=new Snapshot(false,state.contacts.size(),0,0,state.capacityLimited,error);}}
@@ -89,6 +100,7 @@ public final class FederationBackend implements DesktopBackend {
             discoveredPeers.forEach((fingerprint,peer)->result.put(fingerprint,new DeviceDirectoryView.Device(fingerprint,peer.country(),0,0,peer.expiresAt())));
         }
         if(state!=null)for(DeviceDirectoryView.Device device:DeviceDirectoryView.fromPresences(state.presences,now))result.put(device.fingerprint(),device);
+        for(DeviceDirectoryView.Device device:DeviceDirectoryView.fromPresences(discovery.presences(),now))result.put(device.fingerprint(),device);
         result.remove(identity.fingerprint);return List.copyOf(result.values());
     }
     private void importRoutes(FederationNode expected,List<PeerDirectory.Record> routes){
@@ -108,8 +120,14 @@ public final class FederationBackend implements DesktopBackend {
         }
     }
     public SearchResult refreshDevices()throws Exception {
-        FederationNode current=requireDirectory();FederationNode.LookupResult result=current.lookup();importRoutes(current,result.routes);return new SearchResult(result.visitedServers,result.partial);
+        FederationNode current=requireDirectory();CompletableFuture<Boolean> bootstrap=discovery.refresh();int visited=0;
+        try{FederationNode.LookupResult result=current.lookup();importRoutes(current,result.routes);visited=result.visitedServers;}
+        catch(IOException unavailable){/* The independent signed HTTP catalog can still answer. */}
+        boolean reached;
+        try{reached=bootstrap.get(21,TimeUnit.SECONDS);}catch(TimeoutException timeout){reached=false;}catch(ExecutionException unavailable){reached=false;}
+        return new SearchResult(visited+(reached?1:0),true);
     }
+    public DiscoveryStatus discoveryStatus(){return discovery.status();}
     public void startSharing()throws Exception {
         final long epoch;synchronized(this){if(closed)throw new IOException("Backend closed");epoch=++sharingGeneration;}
         operations.lock();
@@ -123,7 +141,14 @@ public final class FederationBackend implements DesktopBackend {
             try{
                 traffic.startSharing(trafficPort);
                 synchronized(this){if(closed || sharingGeneration!=epoch)throw new InterruptedIOException("Sharing start cancelled");advertisedHost=host;backendError="";}
-                Node current=traffic.node();current.setAdvertisedRoute(current.publicRoute(host));publishOwn();
+                Node current=traffic.node();current.setAdvertisedRoute(current.publicRoute(host));
+                final DiscoveryIdentity signalingIdentity;
+                synchronized(publicationGate){if(discoveryIdentity==null)discoveryIdentity=new DiscoveryIdentity(identity);signalingIdentity=discoveryIdentity;}
+                synchronized(cancellationGate){
+                    synchronized(this){if(closed || sharingGeneration!=epoch)throw new InterruptedIOException("Sharing start cancelled");}
+                    pairing=pairingFactory.create(current,identity,signalingIdentity,discovery,fingerprint->pairedTransportLost(current,epoch,fingerprint));
+                }
+                publishOwn();discovery.refresh();
             }catch(Exception failure){stopOwnedSharing(epoch);throw failure;}
         }finally{operations.unlock();}
     }
@@ -139,7 +164,7 @@ public final class FederationBackend implements DesktopBackend {
         return "127.0.0.1";
     }
     public void stopSharing(){long owner;synchronized(this){++sharingGeneration;owner=sharingOwner;advertisedHost="";}disconnect();stopOwnedSharing(owner);}
-    private void stopOwnedSharing(long owner){synchronized(cancellationGate){if(sharingOwner!=owner && sharingOwner!=0)return;sharingOwner=0;traffic.stopSharing();}}
+    private void stopOwnedSharing(long owner){synchronized(cancellationGate){if(sharingOwner!=owner && sharingOwner!=0)return;sharingOwner=0;DesktopPairingManager previous=pairing;pairing=null;if(previous!=null)previous.close();traffic.stopSharing();}}
     public void measureUpload()throws Exception {
         operations.lock();try{disconnect();traffic.remeasure();publishOwn();}finally{operations.unlock();}
     }
@@ -158,20 +183,29 @@ public final class FederationBackend implements DesktopBackend {
         synchronized(this){if(manualPeers.size()>=256 && !manualPeers.containsKey(fingerprint))throw new IOException("Список устройств заполнен");manualPeers.put(fingerprint,new Peer(invitation,route,Long.MAX_VALUE,"",0));}
     }
     private synchronized Peer peer(String fingerprint){Peer manual=manualPeers.get(fingerprint);if(manual!=null)return manual;Peer found=discoveredPeers.get(fingerprint);return found!=null && found.expiresAt()>System.currentTimeMillis()?found:null;}
+    public boolean hasTrafficRoute(String fingerprint){DesktopPairingManager manager=pairing;return peer(fingerprint)!=null || manager!=null && manager.invitation(fingerprint)!=null;}
     public boolean canConnect(String fingerprint){
         boolean selected;synchronized(this){selected=!applications.isEmpty() && !closed;}
-        DesktopTrafficService.Snapshot state=traffic.snapshot();return selected && peer(fingerprint)!=null && state.sharing() && !state.measuring() && state.measuredUpload()>0 && router.availability().installed();
+        DesktopTrafficService.Snapshot state=traffic.snapshot();return selected && (hasTrafficRoute(fingerprint) || pairing!=null && discovery.presence(fingerprint)!=null) && state.sharing() && !state.measuring() && state.measuredUpload()>0 && router.availability().installed();
     }
     public void connect(String fingerprint)throws Exception {
         final long epoch;synchronized(this){if(closed)throw new IOException("Backend closed");epoch=++connectionGeneration;}
         operations.lock();
         try{
             if(!canConnect(fingerprint))throw new IOException("Нужны раздача, измерение, выбранные приложения и установленный Windows-модуль");
-            Peer target=peer(fingerprint);if(target==null)throw new IOException("Маршрут устройства истёк");List<Path> selected=DesktopApplications.canonicalSelection(selectedApplications());
+            Peer target=peer(fingerprint);DesktopPairingManager automatic=pairing;
+            if(target==null && (automatic==null || discovery.presence(fingerprint)==null))throw new IOException("Маршрут или объявление устройства истекло");List<Path> selected=DesktopApplications.canonicalSelection(selectedApplications());
             try{
-                synchronized(cancellationGate){requireConnectionEpoch(epoch);connectionOwner=epoch;synchronized(this){establishedConnection=0;}traffic.disconnect();router.deactivate();}
+                synchronized(cancellationGate){requireConnectionEpoch(epoch);connectionOwner=epoch;synchronized(this){establishedConnection=0;connectionTarget=fingerprint;}traffic.disconnect();router.deactivate();}
                 requireConnectionEpoch(epoch);Runnable lost=()->peerLost(epoch);
-                if(target.invitation()!=null)traffic.connect(target.invitation(),lost);else traffic.connect(target.route(),lost);
+                if(target!=null){if(target.invitation()!=null)traffic.connect(target.invitation(),lost);else traffic.connect(target.route(),lost);}
+                else{
+                    Invitation paired;
+                    try{paired=automatic.connect(discovery.presence(fingerprint)).get(185,TimeUnit.SECONDS);}
+                    catch(ExecutionException unavailable){throw new IOException("Не удалось автоматически соединиться с устройством",unavailable.getCause());}
+                    catch(TimeoutException timeout){automatic.cancelPending(fingerprint);throw new IOException("Автосопряжение превысило время ожидания");}
+                    requireConnectionEpoch(epoch);traffic.connect(paired,lost);
+                }
                 requireConnectionEpoch(epoch);DesktopTrafficService.ProxyEndpoint endpoint=traffic.localProxy();if(endpoint==null)throw new IOException("Peer disconnected");
                 router.activate(selected,endpoint);requireConnectionEpoch(epoch);
                 if(!router.snapshot().active() || !traffic.snapshot().connected())throw new IOException("Windows routing or peer unavailable");
@@ -181,10 +215,20 @@ public final class FederationBackend implements DesktopBackend {
     }
     private synchronized void requireConnectionEpoch(long epoch)throws IOException {if(closed || connectionGeneration!=epoch)throw new InterruptedIOException("Connection cancelled");}
     private void peerLost(long epoch){cancelOwnedConnection(epoch);}
+    private void pairedTransportLost(Node expectedNode,long expectedSharingOwner,String fingerprint){
+        synchronized(cancellationGate){
+            if(sharingOwner!=expectedSharingOwner)return;
+            try{if(traffic.node()!=expectedNode)return;}catch(IOException stopped){return;}
+            long owner;synchronized(this){owner=connectionTarget.equals(fingerprint)?connectionOwner:0;}
+            if(owner!=0)cancelOwnedConnection(owner);
+        }
+    }
+    public String pairingState(){DesktopPairingManager manager=pairing;return manager==null?"OFF":manager.state();}
     private void cancelOwnedConnection(long owner){
         synchronized(cancellationGate){
             if(connectionOwner!=owner && connectionOwner!=0)return;connectionOwner=0;
-            synchronized(this){if(connectionGeneration==owner)++connectionGeneration;if(establishedConnection==owner)establishedConnection=0;}
+            String target;synchronized(this){if(connectionGeneration==owner)++connectionGeneration;if(establishedConnection==owner)establishedConnection=0;target=connectionTarget;connectionTarget="";}
+            DesktopPairingManager automatic=pairing;if(automatic!=null && !target.isEmpty())automatic.cancelPending(target);
             traffic.disconnect();try{router.deactivate();}catch(IOException failure){synchronized(this){backendError="Не удалось остановить Windows-модуль";}}
         }
     }
@@ -192,7 +236,7 @@ public final class FederationBackend implements DesktopBackend {
     public DesktopTrafficService.Snapshot traffic(){
         DesktopTrafficService.Snapshot state=traffic.snapshot();long established;synchronized(this){established=establishedConnection;}
         boolean connected=established!=0 && established==connectionOwner && state.connected() && router.snapshot().active();
-        return new DesktopTrafficService.Snapshot(state.sharing(),connected,state.measuring(),state.sharedBytes(),state.receivedBytes(),state.measuredUpload(),state.shareRateLimit(),state.requestedShareRateLimit(),state.clients(),state.country(),state.connected() && !connected?"CONNECTING":state.status());
+        return new DesktopTrafficService.Snapshot(state.sharing(),connected,state.measuring(),state.sharedBytes(),state.receivedBytes(),state.measuredUpload(),state.shareRateLimit(),state.requestedShareRateLimit(),state.clients(),state.country(),connectionOwner!=0 && !connected?"CONNECTING":state.status());
     }
     public synchronized List<Path> selectedApplications(){return applications;}
     public void selectApplications(List<Path> selected)throws Exception {
@@ -206,6 +250,7 @@ public final class FederationBackend implements DesktopBackend {
         try{
             long established;synchronized(this){if(closed)return;established=establishedConnection;}
             if(established!=0 && (!router.snapshot().active() || !traffic.snapshot().connected()))cancelOwnedConnection(established);
+            boolean running;synchronized(this){running=node!=null;}if(running)discovery.refreshIfDue();
             if(System.currentTimeMillis()-lastPublication>=30_000)publishOwn();
         }catch(Exception ignored){}
     }
@@ -222,5 +267,13 @@ public final class FederationBackend implements DesktopBackend {
             directory.discoveryStore().accept(own,now);directory.acceptRoute(route);lastPublication=now;
         }
     }
-    public void close(){synchronized(this){if(closed)return;closed=true;}maintenance.shutdownNow();stop();traffic.close();router.close();}
+    private DiscoveryPresence ownPresence()throws IOException {
+        synchronized(publicationGate){
+            synchronized(this){if(closed)return null;}
+            DesktopTrafficService.Snapshot state=traffic.snapshot();if(!state.sharing() || state.measuring() || state.measuredUpload()<=0)return null;
+            if(discoveryIdentity==null)discoveryIdentity=new DiscoveryIdentity(identity);
+            return discoveryIdentity.presence(state.country(),state.clients(),state.measuredUpload(),System.currentTimeMillis());
+        }
+    }
+    public void close(){synchronized(this){if(closed)return;closed=true;}maintenance.shutdownNow();stop();discovery.close();traffic.close();router.close();}
 }

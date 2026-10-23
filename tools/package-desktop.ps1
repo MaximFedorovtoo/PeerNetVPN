@@ -1,4 +1,4 @@
-param([ValidateSet('app-image','exe','msi')][string]$Type='exe',[string]$Version='0.7.0',[string]$WixDirectory)
+param([ValidateSet('app-image','exe','msi')][string]$Type='exe',[string]$Version='0.7.2',[string]$WixDirectory)
 $ErrorActionPreference='Stop'
 if ($env:OS -ne 'Windows_NT') { throw 'Windows packaging must run locally on Windows.' }
 $root=[IO.Path]::GetFullPath((Split-Path $PSScriptRoot -Parent))

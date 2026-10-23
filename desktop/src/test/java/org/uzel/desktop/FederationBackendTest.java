@@ -9,7 +9,8 @@ public class FederationBackendTest {
     @Test public void realDirectoryStartStopAndRestartPreservesKey()throws Exception {
         Path root=Files.createTempDirectory("peernet-desktop-");
         int port;try(ServerSocket socket=new ServerSocket(0)){port=socket.getLocalPort();}
-        try(FederationBackend backend=new FederationBackend(root,IdentityStore.load(root))){
+        var identity=IdentityStore.load(root);
+        try(FederationBackend backend=new FederationBackend(root,identity,DesktopDiscoveryClient.disabled(identity.fingerprint))){
             assertFalse(backend.snapshot().running());
             backend.start(new DesktopConfig("localhost",port,true));
             String fingerprint=FederationContact.parse(backend.ownCode()).fingerprint;

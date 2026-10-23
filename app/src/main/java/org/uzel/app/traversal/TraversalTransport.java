@@ -9,6 +9,8 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.*;
 import org.webrtc.*;
+import org.uzel.core.NetworkAccess;
+import org.uzel.core.StunPreflight;
 
 /** Reliable ICE/DTLS carrier. Callers MUST authenticate SDP and retain pinned mTLS inside streams. */
 public final class TraversalTransport implements AutoCloseable {
@@ -56,6 +58,14 @@ public final class TraversalTransport implements AutoCloseable {
         synchronized(FACTORY_LOCK){
             if(owners>0&&!physical.equals(activeNetwork))throw new IOException("Concurrent traversal requires the same physical network");
             try{
+                List<String> stunUrls=StunPreflight.select(new NetworkAccess(){
+                    @Override public InetAddress[] resolve(String host)throws IOException{return physical.getAllByName(host);}
+                    @Override public DatagramSocket datagram()throws IOException{
+                        DatagramSocket socket=new DatagramSocket(null);
+                        try{physical.bindSocket(socket);socket.bind(new InetSocketAddress(0));return socket;}
+                        catch(IOException failure){socket.close();throw failure;}
+                    }
+                });
                 Context app=context.getApplicationContext();
                 if(!initialized){PeerConnectionFactory.initialize(PeerConnectionFactory.InitializationOptions.builder(app).setEnableInternalTracer(false).createInitializationOptions());initialized=true;}
                 if(owners==0){
@@ -65,9 +75,9 @@ public final class TraversalTransport implements AutoCloseable {
                 PeerConnectionFactory.Options options=new PeerConnectionFactory.Options();
                 options.networkIgnoreMask=PeerConnectionFactory.Options.ADAPTER_TYPE_VPN|PeerConnectionFactory.Options.ADAPTER_TYPE_LOOPBACK;
                 created=PeerConnectionFactory.builder().setOptions(options).createPeerConnectionFactory();
-                PeerConnection.RTCConfiguration config=new PeerConnection.RTCConfiguration(Arrays.asList(
-                        PeerConnection.IceServer.builder("stun:stun.cloudflare.com:3478").createIceServer(),
-                        PeerConnection.IceServer.builder("stun:stun.l.google.com:19302").createIceServer()));
+                List<PeerConnection.IceServer> iceServers=new ArrayList<>();
+                for(String url:stunUrls)iceServers.add(PeerConnection.IceServer.builder(url).createIceServer());
+                PeerConnection.RTCConfiguration config=new PeerConnection.RTCConfiguration(iceServers);
                 config.tcpCandidatePolicy=PeerConnection.TcpCandidatePolicy.DISABLED;
                 config.enableIceGatheringOnAnyAddressPorts=false;
                 config.continualGatheringPolicy=PeerConnection.ContinualGatheringPolicy.GATHER_ONCE;

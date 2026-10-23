@@ -9,6 +9,8 @@ public interface DesktopBackend extends AutoCloseable {
     Snapshot snapshot();
     default java.util.List<DeviceDirectoryView.Device> devices(){return java.util.List.of();}
     record SearchResult(int visitedServers,boolean partial){}
+    record DiscoveryStatus(String state,String detail,int verifiedDevices){}
+    default DiscoveryStatus discoveryStatus(){return new DiscoveryStatus("NOT_STARTED","",0);}
     SearchResult refreshDevices()throws Exception;
     DesktopTrafficService.Snapshot traffic();
     void startSharing()throws Exception;
@@ -18,6 +20,8 @@ public interface DesktopBackend extends AutoCloseable {
     String sharingCode()throws Exception;
     void addTrafficPeer(String code)throws Exception;
     boolean canConnect(String fingerprint);
+    default boolean hasTrafficRoute(String fingerprint){return false;}
+    default String pairingState(){return "OFF";}
     void connect(String fingerprint)throws Exception;
     void disconnect();
     java.util.List<java.nio.file.Path> selectedApplications();

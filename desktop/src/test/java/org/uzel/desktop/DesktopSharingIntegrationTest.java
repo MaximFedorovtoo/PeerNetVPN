@@ -103,6 +103,18 @@ public class DesktopSharingIntegrationTest {
             backend.stopSharing();assertTrue(backend.snapshot().running());
         }
     }
+    @Test(timeout=15000) public void delayedLossFromRetiredPairingManagerCannotCancelNewConnectionToSameIdentity()throws Exception {
+        Path root=Files.createTempDirectory("uzelio-pairing-generation-");TlsIdentity identity=IdentityStore.load(root);TestRouting routing=new TestRouting();
+        List<DesktopPairingManager.Listener> losses=new ArrayList<>();
+        try(DesktopTrafficService exit=traffic(IdentityStore.load(Files.createTempDirectory("uzelio-pairing-generation-exit-")));
+            FederationBackend backend=new FederationBackend(root,identity,traffic(identity),0,routing,DesktopDiscoveryClient.disabled(identity.fingerprint),(node,key,discoveryIdentity,client,listener)->{losses.add(listener);return new DesktopPairingManager(node,key,discoveryIdentity,client,listener);})){
+            exit.startSharing(0);backend.startSharing();String peer=exit.invitation("127.0.0.1").fingerprint;
+            backend.addTrafficPeer(exit.invitation("127.0.0.1").encode());backend.selectApplications(List.of(Files.write(root.resolve("Browser.exe"),new byte[]{1})));backend.connect(peer);
+            assertTrue(backend.traffic().connected());backend.stopSharing();await(()->exit.snapshot().clients()==0);
+            backend.startSharing();backend.connect(peer);assertTrue(backend.traffic().connected());assertEquals(2,losses.size());
+            losses.get(0).unavailable(peer);assertTrue("Old pairing loss cancelled the new peer session",backend.traffic().connected());assertTrue(routing.active);
+        }
+    }
     private static PeerDirectory.Record shortLivedRoute(Path root,TlsIdentity identity,long expires)throws Exception {
         ByteArrayOutputStream payload=new ByteArrayOutputStream();DataOutputStream body=new DataOutputStream(payload);
         body.writeInt(1);body.writeUTF(PeerRoute.direct("127.0.0.1",9,identity.fingerprint).encode());body.writeUTF("CA");body.writeLong(1);body.writeLong(expires-120_000);body.writeLong(expires);

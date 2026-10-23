@@ -30,10 +30,14 @@ final class DesktopWindow extends JPanel {
     private final ExecutorService iconWorker=Executors.newSingleThreadExecutor(r->{Thread t=new Thread(r,"uzelio-app-icons");t.setDaemon(true);return t;});
     private final Map<Path,Icon> applicationIcons=new ConcurrentHashMap<>();
     private final Set<String> connectable=new HashSet<>();
+    private final Set<String> routedDevices=new HashSet<>();
+    private DesktopBackend.DiscoveryStatus discoveryStatus=new DesktopBackend.DiscoveryStatus("NOT_STARTED","",0);
+    private final ExecutorService discoveryWorker=Executors.newSingleThreadExecutor(r->{Thread t=new Thread(r,"uzelio-discovery-query");t.setDaemon(true);return t;});
     private final ExecutorService observer=Executors.newSingleThreadExecutor(r->{Thread t=new Thread(r,"uzelio-status");t.setDaemon(true);return t;});
     private java.util.List<DeviceDirectoryView.Device> devices=java.util.List.of();
     private int tab,region,visited,chipOffset;
-    private boolean busy,searching,searched,refreshPending;
+    private boolean busy,searching,searched,refreshPending,previewRendering,searchPartial=true;
+    private String discoveryError="";
     private String error="";
     private JFrame frame;
     private TrayIcon tray;
@@ -48,15 +52,24 @@ final class DesktopWindow extends JPanel {
     }
     void open(){frame=new JFrame("Uzelio");frame.setContentPane(this);Rectangle usable=GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds();frame.setMinimumSize(new Dimension(Math.min(450,usable.width),Math.min(700,usable.height)));frame.setSize(Math.min(520,usable.width),Math.min(900,usable.height));frame.setLocation(usable.x+(usable.width-frame.getWidth())/2,usable.y+(usable.height-frame.getHeight())/2);frame.setIconImage(DesktopMain.icon());frame.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);frame.addWindowListener(new WindowAdapter(){public void windowClosing(WindowEvent e){if(tray==null)exit();else frame.setVisible(false);}});installTray();timer.start();frame.addNotify();String captionStatus=WindowsCaption.apply(frame);frame.setVisible(true);frame.toFront();if((Boolean.getBoolean("uzelio.previewMetrics")||Boolean.getBoolean("peernet.previewMetrics")))SwingUtilities.invokeLater(()->{try{Files.writeString(root.resolve("window-metrics.txt"),"frame="+frame.getBounds()+"\npage="+page.getSize()+"\nusable="+usable+"\ntransform="+frame.getGraphicsConfiguration().getDefaultTransform()+"\nvisible="+frame.isVisible()+",showing="+frame.isShowing()+",active="+frame.isActive()+",state="+frame.getExtendedState()+"\ncaption="+captionStatus);}catch(Exception ignored){}});}
     private void buildNav(){nav.removeAll();String[] names={"Главная","Карта","Трафик","Профиль"},icons={"home","map","traffic","profile"};for(int i=0;i<4;i++){final int index=i;JButton item=new JButton(){protected void paintComponent(Graphics raw){Graphics2D g=quality(raw);Color c=index==tab?CYAN:MUTED;DesktopArtwork.paint(g,icons[index],getWidth()/2.0-14,9,28,c);g.setFont(new Font("Segoe UI",index==tab?Font.BOLD:Font.PLAIN,12));g.setColor(c);int width=g.getFontMetrics().stringWidth(names[index]);g.drawString(names[index],(getWidth()-width)/2,56);if(hasFocus()){g.setColor(CYAN);g.drawRoundRect(5,4,getWidth()-11,getHeight()-9,12,12);}g.dispose();}};item.setContentAreaFilled(false);item.setBorder(null);item.setToolTipText(names[i]);item.getAccessibleContext().setAccessibleName(names[i]);item.addActionListener(e->showTab(index));nav.add(item);}nav.revalidate();nav.repaint();}
-    private void showTab(int next){tab=next;page.revalidate();page.repaint();header.revalidate();header.repaint();nav.repaint();scroll.getVerticalScrollBar().setValue(0);}
-    private void refresh(){if(refreshPending||observer.isShutdown())return;refreshPending=true;observer.submit(()->{try{var next=backend.snapshot();var observed=backend.devices();var transfer=backend.traffic();int apps=backend.selectedApplications().size();var availability=backend.routingAvailability();var routing=backend.routingState();Set<String> ready=new HashSet<>();for(var d:observed)if(backend.canConnect(d.fingerprint()))ready.add(d.fingerprint());SwingUtilities.invokeLater(()->{state=next;devices=observed;traffic=transfer;selectedCount=apps;routingAvailability=availability;routingState=routing;routingObserved=true;connectable.clear();connectable.addAll(ready);refreshPending=false;page.revalidate();page.repaint();});}catch(Exception e){SwingUtilities.invokeLater(()->refreshPending=false);}});}
+    void showTab(int next){tab=next;page.revalidate();page.repaint();header.revalidate();header.repaint();nav.repaint();scroll.getVerticalScrollBar().setValue(0);if(next==1&&!previewRendering)search();}
+    private void refresh(){if(refreshPending||observer.isShutdown())return;refreshPending=true;observer.submit(()->{try{var next=backend.snapshot();var observed=backend.devices();var transfer=backend.traffic();int apps=backend.selectedApplications().size();var availability=backend.routingAvailability();var routing=backend.routingState();var discovery=backend.discoveryStatus();Set<String> ready=new HashSet<>(),routes=new HashSet<>();for(var d:observed){if(backend.canConnect(d.fingerprint()))ready.add(d.fingerprint());if(backend.hasTrafficRoute(d.fingerprint()))routes.add(d.fingerprint());}SwingUtilities.invokeLater(()->{state=next;devices=observed;traffic=transfer;selectedCount=apps;routingAvailability=availability;routingState=routing;routingObserved=true;discoveryStatus=discovery==null?new DesktopBackend.DiscoveryStatus("NOT_STARTED","",0):discovery;routedDevices.clear();routedDevices.addAll(routes);connectable.clear();connectable.addAll(ready);refreshPending=false;page.revalidate();page.repaint();});}catch(Exception e){SwingUtilities.invokeLater(()->refreshPending=false);}});}
     private void run(Work action){if(busy)return;busy=true;page.repaint();worker.submit(()->{String failure="";try{action.run();}catch(Exception e){failure=e.getMessage()==null?"Не удалось выполнить действие":e.getMessage();}String result=failure;SwingUtilities.invokeLater(()->{error=result;busy=false;refresh();});});}
     private void toggle(){run(()->{if(backend.snapshot().running())backend.stop();else backend.start(DesktopConfig.load(root));});}
     private void toggleSharing(){if(traffic.sharing()||traffic.measuring()){Thread cancel=new Thread(()->{backend.stopSharing();SwingUtilities.invokeLater(this::refresh);},"uzelio-stop-sharing");cancel.setDaemon(true);cancel.start();}else run(()->{if(!backend.snapshot().running())backend.start(DesktopConfig.load(root));backend.startSharing();});}
     private void cancelConnection(){Thread cancel=new Thread(()->{backend.disconnect();SwingUtilities.invokeLater(this::refresh);},"uzelio-disconnect");cancel.setDaemon(true);cancel.start();}
     private static String bytes(long value){return value>=1_000_000_000?String.format(Locale.forLanguageTag("ru"),"%.1f ГБ",value/1e9):value>=1_000_000?String.format(Locale.forLanguageTag("ru"),"%.1f МБ",value/1e6):String.format(Locale.forLanguageTag("ru"),"%.1f КБ",value/1e3);}
     private static String speed(long value){return String.format(Locale.forLanguageTag("ru"),"%.1f Мбит/с",value/125000.0);}
-    private void search(){if(busy)return;if(!state.running()){showTab(3);return;}searching=true;run(()->{try{var result=backend.refreshDevices();SwingUtilities.invokeLater(()->{visited=result.visitedServers();searched=true;});}finally{SwingUtilities.invokeLater(()->searching=false);}});}
+    private void search(){
+        if(searching||discoveryWorker.isShutdown())return;
+        searching=true;discoveryError="";page.repaint();
+        discoveryWorker.submit(()->{DesktopBackend.SearchResult result=null;String failure="";
+            try{if(!backend.snapshot().running())backend.start(DesktopConfig.load(root));result=backend.refreshDevices();}
+            catch(Exception e){failure=e.getMessage()==null?"Поиск не завершён":e.getMessage();}
+            DesktopBackend.SearchResult answer=result;String problem=failure;
+            SwingUtilities.invokeLater(()->{searching=false;discoveryError=problem;if(answer!=null){visited=answer.visitedServers();searchPartial=answer.partial();searched=true;}refresh();page.repaint();});
+        });
+    }
     private int[] counts(){int[] n=new int[7];for(var d:devices){n[0]++;n[DesktopRegions.group(d.country())]++;}return n;}
     private java.util.List<DeviceDirectoryView.Device> filtered(){return devices.stream().filter(d->region==0||DesktopRegions.group(d.country())==region).toList();}
     private interface Work{void run()throws Exception;}
@@ -100,12 +113,17 @@ final class DesktopWindow extends JPanel {
             }
             int y=devices.isEmpty()?295:365;var list=filtered();
             if(list.isEmpty()){
-                String kind=!error.isEmpty()?"offline":searching?"loading":"search";Color tint=!error.isEmpty()?new Color(0xFFC978):CYAN;DesktopArtwork.paint(g,kind,getWidth()/2.0-55,y,110,tint);
-                String title=searching?"Ищем узлы…":!error.isEmpty()?"Нет связи с каталогом":!state.running()?"Каталог остановлен":"Узлы не найдены";
-                centered(g,title,y+139,24,TEXT,true);centered(g,searching?"Поиск по известным участникам":!state.running()?"Запустите сеть в профиле":"Показана только доступная часть сети",y+166,14,MUTED,false);
-                action(g,!state.running()?"Открыть профиль":searching?"Поиск…":"Повторить поиск",x+32,y+185,w-64,48,true,!searching,DesktopWindow.this::search);
-            }else{action(g,searching?"Поиск…":"Обновить поиск",x,y,w,44,true,!searching,DesktopWindow.this::search);y+=59;for(var d:list){card(g,x,y,w,100);String country=DeviceDirectoryView.regionName(d.country());text(g,country,x+17,y+29,18,TEXT,true);text(g,d.advertisedUpload()>0?"Свободно "+Math.max(0,3-d.clients())+" из 3":"Нагрузка не проверена",x+17,y+54,13,MUTED,false);boolean ready=connectable.contains(d.fingerprint());text(g,connectionReason(d.fingerprint()),x+17,y+78,12,MUTED,false);action(g,"Подключить",x+w-135,y+43,120,48,true,ready,()->connectPeer(d.fingerprint()));y+=113;}}
-            if(searched)text(g,"Проверено каталогов: "+visited+" · неполный результат",x,list.isEmpty()?y+253:y+20,12,MUTED,false);
+                var empty=DesktopDiscoveryPresentation.empty(discoveryStatus.state(),searching,!discoveryError.isEmpty(),region!=0&&!devices.isEmpty());
+                Color tint="offline".equals(empty.artwork())?new Color(0xFFC978):CYAN;DesktopArtwork.paint(g,empty.artwork(),getWidth()/2.0-55,y,110,tint);
+                centered(g,empty.title(),y+139,24,TEXT,true);centered(g,empty.hint(),y+166,14,MUTED,false);
+                boolean pending=searching||"SEARCHING".equals(discoveryStatus.state());
+                action(g,empty.action(),x+32,y+185,w-64,48,true,!pending,()->{if("NOT_CONFIGURED".equals(discoveryStatus.state()))showTab(3);else if(region!=0&&!devices.isEmpty()){region=0;page.revalidate();page.repaint();}else search();});
+                int last=hits.size()-1;Hit query=hits.get(last);hits.set(last,new Hit(query.title,query.bounds,query.action,!pending));
+            }else{action(g,searching?"Поиск…":"Обновить поиск",x,y,w,44,true,!searching,DesktopWindow.this::search);y+=59;for(var d:list){card(g,x,y,w,100);String country=DeviceDirectoryView.regionName(d.country());text(g,country,x+17,y+29,18,TEXT,true);text(g,d.advertisedUpload()>0?"Свободно "+Math.max(0,3-d.clients())+" из 3":"Нагрузка не проверена",x+17,y+54,13,MUTED,false);boolean ready=connectable.contains(d.fingerprint());text(g,connectionReason(d.fingerprint()),x+17,y+78,12,MUTED,false);
+                String prerequisiteTitle=prerequisiteActionTitle();int buttonWidth=prerequisiteTitle==null?120:190;
+                boolean canResolve=routingObserved&&!traffic.measuring()&&(!traffic.sharing()||selectedCount==0||routingAvailability.supported());
+                action(g,prerequisiteTitle==null?"Подключить":prerequisiteTitle,x+w-buttonWidth-15,y+43,buttonWidth,48,true,prerequisiteTitle==null?ready:canResolve,prerequisiteTitle==null?()->connectPeer(d.fingerprint()):DesktopWindow.this::resolvePrerequisite);y+=113;}}
+            if(searched)text(g,"Проверено каталогов: "+visited+(searchPartial?" · показана часть сети":" · запрос завершён"),x,list.isEmpty()?y+253:y+20,12,MUTED,false);
         }
         private void traffic(Graphics2D g,int x,int w){String[] titles={"Получено","Отдано","Измеренная отдача"},values={bytes(traffic.receivedBytes()),bytes(traffic.sharedBytes()),traffic.measuring()?"Измеряем…":traffic.measuredUpload()>0?speed(traffic.measuredUpload()):"Нет замера"};for(int i=0;i<3;i++){card(g,x,8+i*118,w,104);text(g,titles[i],x+18,40+i*118,14,MUTED,false);text(g,values[i],x+18,86+i*118,28,TEXT,true);}action(g,"Измерить скорость",x,375,w,48,true,traffic.sharing()&&!traffic.measuring(),()->run(backend::measureUpload));action(g,"Скорость раздачи",x,437,w,48,false,true,DesktopWindow.this::rateDialog);if(!error.isEmpty())wrapped(g,error,x,510,w,13,new Color(0xFF8E9A));}
         private void profile(Graphics2D g,int x,int w){
@@ -139,7 +157,15 @@ final class DesktopWindow extends JPanel {
         if(selectedCount==0){applicationsDialog();return;}
         run(()->backend.connect(fingerprint));
     }
-    private String connectionReason(String fingerprint){return routingObserved?DesktopConnectionPresentation.reason(traffic.sharing(),traffic.measuring(),selectedCount,routingAvailability.supported(),routingAvailability.installed(),connectable.contains(fingerprint)):"Проверяем настройки";}
+    private String prerequisiteActionTitle(){
+        if(!routingObserved)return "Проверяем настройки";
+        if(traffic.measuring())return "Дождитесь замера";
+        if(!traffic.sharing())return "Включить раздачу";
+        if(selectedCount==0)return "Выбрать приложения";
+        if(!routingAvailability.supported())return "Нужна Windows x64";
+        return routingAvailability.installed()?null:"Компонент Windows";
+    }
+    private String connectionReason(String fingerprint){if(!routedDevices.contains(fingerprint)&&connectable.contains(fingerprint))return "Автоматическое сопряжение";return routingObserved?DesktopConnectionPresentation.reason(traffic.sharing(),traffic.measuring(),selectedCount,routingAvailability.supported(),routingAvailability.installed(),connectable.contains(fingerprint)):"Проверяем настройки";}
     private String routingHint(){
         if(!routingObserved)return "Проверяем сетевой компонент…";
         if(!routingAvailability.supported())return "Маршрутизация приложений требует Windows x64";
@@ -220,6 +246,6 @@ final class DesktopWindow extends JPanel {
     }catch(Exception e){error=e.getMessage();}}
     private void installTray(){if(!SystemTray.isSupported())return;try{PopupMenu menu=new PopupMenu();MenuItem show=new MenuItem("Uzelio"),exit=new MenuItem("Выйти");show.addActionListener(e->SwingUtilities.invokeLater(()->{frame.setVisible(true);frame.toFront();}));exit.addActionListener(e->SwingUtilities.invokeLater(this::exit));menu.add(show);menu.add(exit);tray=new TrayIcon(DesktopMain.icon(),"Uzelio",menu);tray.setImageAutoSize(true);SystemTray.getSystemTray().add(tray);}catch(AWTException ignored){tray=null;}}
     private void exit(){timer.stop();Thread closing=new Thread(()->{backend.close();if(tray!=null)SystemTray.getSystemTray().remove(tray);System.exit(0);},"uzelio-close");closing.setDaemon(true);closing.start();}
-    void renderPreview(Path directory)throws Exception {Files.createDirectories(directory);for(int[] size:new int[][]{{520,870},{450,670}}){setSize(size[0],size[1]);for(int next:new int[]{0,1,2,3}){showTab(next);layoutTree(this);BufferedImage image=new BufferedImage(size[0],size[1],BufferedImage.TYPE_INT_RGB);Graphics2D g=image.createGraphics();printAll(g);g.dispose();String suffix=size[0]==450?"-min":"";ImageIO.write(image,"png",directory.resolve(new String[]{"home","map","traffic","profile"}[next]+suffix+".png").toFile());}}timer.stop();worker.shutdownNow();observer.shutdownNow();iconWorker.shutdownNow();}
+    void renderPreview(Path directory)throws Exception {previewRendering=true;Files.createDirectories(directory);for(int[] size:new int[][]{{520,870},{450,670}}){setSize(size[0],size[1]);for(int next:new int[]{0,1,2,3}){showTab(next);layoutTree(this);BufferedImage image=new BufferedImage(size[0],size[1],BufferedImage.TYPE_INT_RGB);Graphics2D g=image.createGraphics();printAll(g);g.dispose();String suffix=size[0]==450?"-min":"";ImageIO.write(image,"png",directory.resolve(new String[]{"home","map","traffic","profile"}[next]+suffix+".png").toFile());}}timer.stop();worker.shutdownNow();observer.shutdownNow();iconWorker.shutdownNow();discoveryWorker.shutdownNow();}
     private static void layoutTree(Container container){container.doLayout();for(Component c:container.getComponents())if(c instanceof Container child)layoutTree(child);}
 }

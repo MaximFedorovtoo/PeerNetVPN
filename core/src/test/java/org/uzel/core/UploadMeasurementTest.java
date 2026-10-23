@@ -55,7 +55,7 @@ public class UploadMeasurementTest {
         long rate=UploadMeasurement.upload(url->{Fake c=new Fake(url,200,"");opened.add(c);return c;},()->false);
         assertTrue(rate>=3);assertEquals(3,opened.size());
         for(Fake c:opened){
-            assertTrue(c.getURL().toString().startsWith("https://speedtest.selectel.ru/empty.php?"));
+            assertTrue(c.getURL().toString().startsWith("https://speedtest.cesnet.cz/backend/empty.php?"));
             assertTrue(c.sent>=262144 && c.sent<=16*1024*1024);assertEquals("POST",c.getRequestMethod());
             assertFalse(c.getInstanceFollowRedirects());assertFalse(c.getUseCaches());assertTrue(c.disconnected);
             assertEquals("identity",c.getRequestProperty("Content-Encoding"));
@@ -65,7 +65,7 @@ public class UploadMeasurementTest {
         List<Fake> opened=new ArrayList<>();
         long speed=UploadMeasurement.upload(url->{Fake c=new Fake(url,opened.isEmpty()?503:200,"");opened.add(c);return c;},()->false);
         assertTrue(speed>=3);assertEquals(4,opened.size());assertEquals(24*1024*1024,opened.stream().mapToInt(c->c.sent).sum());
-        assertTrue(opened.get(1).getURL().toString().startsWith("https://speedtest.59telecom.ru/backend/empty?"));
+        assertTrue(opened.get(1).getURL().toString().startsWith("https://fra.speedtest.clouvider.net/backend/empty.php?"));
     }
     @Test public void partialFailedWriteReservesWholeAttemptRatherThanRetryingUnlimitedData() throws Exception {
         List<Fake> opened=new ArrayList<>();
@@ -80,14 +80,14 @@ public class UploadMeasurementTest {
         List<Fake> opened=new ArrayList<>();
         UploadMeasurement.upload(url->{Fake c=new Fake(url,200,opened.isEmpty()?"<html>proxy</html>":"");opened.add(c);return c;},()->false);
         assertEquals(4,opened.size());
-        assertTrue(opened.get(1).getURL().toString().contains("59telecom"));
+        assertTrue(opened.get(1).getURL().toString().contains("clouvider"));
     }
     @Test public void connectionFactoryFailureAlsoSwitchesProviderInsideSameBudget() throws Exception {
         List<String> attempted=new ArrayList<>();List<Fake> opened=new ArrayList<>();
         UploadMeasurement.upload(url->{attempted.add(url);if(attempted.size()==1)throw new IOException("No physical route");
             Fake c=new Fake(url,200,"");opened.add(c);return c;},()->false);
         assertEquals(4,attempted.size());assertEquals(3,opened.size());
-        assertTrue(attempted.get(1).startsWith("https://speedtest.59telecom.ru/backend/empty?"));
+        assertTrue(attempted.get(1).startsWith("https://fra.speedtest.clouvider.net/backend/empty.php?"));
         assertEquals(24*1024*1024-262144,opened.stream().mapToInt(c->c.sent).sum());
     }
     @Test public void cancellationNeverStartsFallback() throws Exception {

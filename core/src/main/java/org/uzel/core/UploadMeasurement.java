@@ -12,8 +12,8 @@ import java.util.function.BooleanSupplier;
 /** Bounded physical-uplink calibration against explicitly published LibreSpeed upload handlers. */
 public final class UploadMeasurement {
     private static final String[] ENDPOINTS={
-            "https://speedtest.selectel.ru/empty.php",
-            "https://speedtest.59telecom.ru/backend/empty"
+            "https://speedtest.cesnet.cz/backend/empty.php",
+            "https://fra.speedtest.clouvider.net/backend/empty.php"
     };
     private static final int SAMPLE_BYTES=1024*1024,MAX_ATTEMPTED_BYTES=24*SAMPLE_BYTES;
     private static final long ATTEMPT_NANOS=20_000_000_000L,TOTAL_NANOS=45_000_000_000L;
