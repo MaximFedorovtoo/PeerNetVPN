@@ -14,6 +14,7 @@ public final class FederationBackend implements DesktopBackend {
         WindowsAppRouter.Availability availability();
         WindowsAppRouter.Snapshot snapshot();
         void activate(List<Path> applications,DesktopTrafficService.ProxyEndpoint endpoint)throws IOException;
+        default void activate(DesktopRoutingMode mode,List<Path> applications,DesktopTrafficService.ProxyEndpoint endpoint)throws IOException {activate(applications,endpoint);}
         void deactivate()throws IOException;
         void close();
     }
@@ -24,6 +25,7 @@ public final class FederationBackend implements DesktopBackend {
             public WindowsAppRouter.Availability availability(){return router.availability();}
             public WindowsAppRouter.Snapshot snapshot(){return router.snapshot();}
             public void activate(List<Path> apps,DesktopTrafficService.ProxyEndpoint proxy)throws IOException{router.activate(apps,proxy);}
+            public void activate(DesktopRoutingMode mode,List<Path> apps,DesktopTrafficService.ProxyEndpoint proxy)throws IOException{router.activate(mode,apps,proxy);}
             public void deactivate()throws IOException{router.deactivate();}
             public void close(){router.close();}
         };
@@ -44,8 +46,10 @@ public final class FederationBackend implements DesktopBackend {
     private Snapshot stopped=new Snapshot(false,0,0,0,false,"");
     private final Map<String,Peer> manualPeers=new LinkedHashMap<>(),discoveredPeers=new LinkedHashMap<>();
     private List<Path> applications=List.of();
+    private DesktopRoutingMode routingMode=DesktopRoutingMode.SELECTED_APPLICATIONS;
     private DiscoveryIdentity discoveryIdentity;
     private volatile DesktopPairingManager pairing;
+    private CompletableFuture<Invitation> pendingPairing;
     private long directoryGeneration,sharingGeneration,connectionGeneration,establishedConnection;
     private volatile long lastPublication,sharingOwner,connectionOwner;
     private boolean closed;
@@ -62,6 +66,7 @@ public final class FederationBackend implements DesktopBackend {
         this.pairingFactory=Objects.requireNonNull(pairingFactory);
         if(trafficPort<0 || trafficPort>65535)throw new IllegalArgumentException("Traffic port");this.trafficPort=trafficPort;
         try{applications=DesktopApplications.load(root);}catch(IOException invalid){backendError="Выберите приложения заново: сохранённый файл недоступен";}
+        try{routingMode=DesktopRoutingMode.load(root);}catch(IOException invalid){backendError="Выберите режим подключения заново";}
         maintenance=Executors.newSingleThreadScheduledExecutor(task->{Thread thread=new Thread(task,"uzelio-desktop-sharing");thread.setDaemon(true);return thread;});
         maintenance.scheduleWithFixedDelay(this::tick,1,1,TimeUnit.SECONDS);
     }
@@ -185,35 +190,44 @@ public final class FederationBackend implements DesktopBackend {
     private synchronized Peer peer(String fingerprint){Peer manual=manualPeers.get(fingerprint);if(manual!=null)return manual;Peer found=discoveredPeers.get(fingerprint);return found!=null && found.expiresAt()>System.currentTimeMillis()?found:null;}
     public boolean hasTrafficRoute(String fingerprint){DesktopPairingManager manager=pairing;return peer(fingerprint)!=null || manager!=null && manager.invitation(fingerprint)!=null;}
     public boolean canConnect(String fingerprint){
-        boolean selected;synchronized(this){selected=!applications.isEmpty() && !closed;}
+        boolean selected;synchronized(this){selected=(routingMode==DesktopRoutingMode.ALL_TRAFFIC || !applications.isEmpty()) && !closed;}
         DesktopTrafficService.Snapshot state=traffic.snapshot();return selected && (hasTrafficRoute(fingerprint) || pairing!=null && discovery.presence(fingerprint)!=null) && state.sharing() && !state.measuring() && state.measuredUpload()>0 && router.availability().installed();
     }
     public void connect(String fingerprint)throws Exception {
-        final long epoch;synchronized(this){if(closed)throw new IOException("Backend closed");epoch=++connectionGeneration;}
+        final long epoch;
+        synchronized(cancellationGate){
+            synchronized(this){if(closed)throw new IOException("Backend closed");if(Thread.currentThread().isInterrupted())throw new InterruptedIOException("Connection cancelled");epoch=++connectionGeneration;}
+            cancelOwnedConnection(connectionOwner);
+        }
         operations.lock();
         try{
+            requireConnectionEpoch(epoch);
             if(!canConnect(fingerprint))throw new IOException("Нужны раздача, измерение, выбранные приложения и установленный Windows-модуль");
             Peer target=peer(fingerprint);DesktopPairingManager automatic=pairing;
-            if(target==null && (automatic==null || discovery.presence(fingerprint)==null))throw new IOException("Маршрут или объявление устройства истекло");List<Path> selected=DesktopApplications.canonicalSelection(selectedApplications());
+            if(target==null && (automatic==null || discovery.presence(fingerprint)==null))throw new IOException("Маршрут или объявление устройства истекло");
+            DesktopRoutingMode mode=routingMode();List<Path> selected=mode==DesktopRoutingMode.ALL_TRAFFIC?List.of():DesktopApplications.canonicalSelection(selectedApplications());
             try{
                 synchronized(cancellationGate){requireConnectionEpoch(epoch);connectionOwner=epoch;synchronized(this){establishedConnection=0;connectionTarget=fingerprint;}traffic.disconnect();router.deactivate();}
                 requireConnectionEpoch(epoch);Runnable lost=()->peerLost(epoch);
                 if(target!=null){if(target.invitation()!=null)traffic.connect(target.invitation(),lost);else traffic.connect(target.route(),lost);}
                 else{
-                    Invitation paired;
-                    try{paired=automatic.connect(discovery.presence(fingerprint)).get(185,TimeUnit.SECONDS);}
+                    Invitation paired;CompletableFuture<Invitation> waiting;
+                    synchronized(cancellationGate){requireConnectionEpoch(epoch);waiting=automatic.connect(discovery.presence(fingerprint));pendingPairing=waiting;}
+                    try{paired=waiting.get(185,TimeUnit.SECONDS);}
+                    catch(CancellationException cancelled){throw new InterruptedIOException("Connection cancelled");}
                     catch(ExecutionException unavailable){throw new IOException("Не удалось автоматически соединиться с устройством",unavailable.getCause());}
-                    catch(TimeoutException timeout){automatic.cancelPending(fingerprint);throw new IOException("Автосопряжение превысило время ожидания");}
+                    catch(TimeoutException timeout){waiting.cancel(true);throw new IOException("Автосопряжение превысило время ожидания");}
+                    finally{if(!waiting.isDone())waiting.cancel(true);synchronized(cancellationGate){if(pendingPairing==waiting)pendingPairing=null;}}
                     requireConnectionEpoch(epoch);traffic.connect(paired,lost);
                 }
                 requireConnectionEpoch(epoch);DesktopTrafficService.ProxyEndpoint endpoint=traffic.localProxy();if(endpoint==null)throw new IOException("Peer disconnected");
-                router.activate(selected,endpoint);requireConnectionEpoch(epoch);
+                router.activate(mode,selected,endpoint);requireConnectionEpoch(epoch);
                 if(!router.snapshot().active() || !traffic.snapshot().connected())throw new IOException("Windows routing or peer unavailable");
                 synchronized(this){if(closed || connectionGeneration!=epoch)throw new InterruptedIOException("Connection cancelled");establishedConnection=epoch;backendError="";}
             }catch(Exception failure){cancelOwnedConnection(epoch);throw failure;}
         }finally{operations.unlock();}
     }
-    private synchronized void requireConnectionEpoch(long epoch)throws IOException {if(closed || connectionGeneration!=epoch)throw new InterruptedIOException("Connection cancelled");}
+    private synchronized void requireConnectionEpoch(long epoch)throws IOException {if(closed || connectionGeneration!=epoch || Thread.currentThread().isInterrupted())throw new InterruptedIOException("Connection cancelled");}
     private void peerLost(long epoch){cancelOwnedConnection(epoch);}
     private void pairedTransportLost(Node expectedNode,long expectedSharingOwner,String fingerprint){
         synchronized(cancellationGate){
@@ -227,8 +241,8 @@ public final class FederationBackend implements DesktopBackend {
     private void cancelOwnedConnection(long owner){
         synchronized(cancellationGate){
             if(connectionOwner!=owner && connectionOwner!=0)return;connectionOwner=0;
-            String target;synchronized(this){if(connectionGeneration==owner)++connectionGeneration;if(establishedConnection==owner)establishedConnection=0;target=connectionTarget;connectionTarget="";}
-            DesktopPairingManager automatic=pairing;if(automatic!=null && !target.isEmpty())automatic.cancelPending(target);
+            synchronized(this){if(connectionGeneration==owner)++connectionGeneration;if(establishedConnection==owner)establishedConnection=0;connectionTarget="";}
+            CompletableFuture<Invitation> waiting=pendingPairing;pendingPairing=null;if(waiting!=null)waiting.cancel(true);
             traffic.disconnect();try{router.deactivate();}catch(IOException failure){synchronized(this){backendError="Не удалось остановить Windows-модуль";}}
         }
     }
@@ -239,8 +253,13 @@ public final class FederationBackend implements DesktopBackend {
         return new DesktopTrafficService.Snapshot(state.sharing(),connected,state.measuring(),state.sharedBytes(),state.receivedBytes(),state.measuredUpload(),state.shareRateLimit(),state.requestedShareRateLimit(),state.clients(),state.country(),connectionOwner!=0 && !connected?"CONNECTING":state.status());
     }
     public synchronized List<Path> selectedApplications(){return applications;}
+    public synchronized DesktopRoutingMode routingMode(){return routingMode;}
+    public void setRoutingMode(DesktopRoutingMode mode)throws Exception {
+        Objects.requireNonNull(mode);if(routingMode()==mode)return;disconnect();operations.lock();
+        try{disconnect();mode.save(root);synchronized(this){routingMode=mode;backendError="";}}finally{operations.unlock();}
+    }
     public void selectApplications(List<Path> selected)throws Exception {
-        List<Path> canonical=DesktopApplications.canonicalSelection(selected);operations.lock();
+        List<Path> canonical=DesktopApplications.canonicalSelection(selected);disconnect();operations.lock();
         try{disconnect();DesktopApplications.save(root,canonical);synchronized(this){applications=canonical;backendError="";}}finally{operations.unlock();}
     }
     public WindowsAppRouter.Availability routingAvailability(){return router.availability();}

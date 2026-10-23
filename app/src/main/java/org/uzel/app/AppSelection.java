@@ -13,9 +13,21 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Set;
 
-/** Explicit VPN allowlist. An absent or empty selection always means no VPN. */
+/** Explicit VPN scope. Selected-app mode remains the default, with a strict allowlist. */
 public final class AppSelection {
     private AppSelection() {}
+
+    public static synchronized boolean allApplications(Context context) {
+        return "ALL".equals(context.getSharedPreferences("vpn_apps",Context.MODE_PRIVATE).getString("mode","SELECTED"));
+    }
+
+    public static synchronized void saveAllApplications(Context context,boolean enabled) {
+        context.getSharedPreferences("vpn_apps",Context.MODE_PRIVATE).edit().putString("mode",enabled?"ALL":"SELECTED").apply();
+    }
+
+    public static synchronized boolean vpnReady(Context context) {
+        return allApplications(context)||!validPackages(context).isEmpty();
+    }
 
     public static final class App {
         public final String packageName;

@@ -94,4 +94,7 @@
     <string name="network_bootstrap_required">ネットワークに参加するには既知のオンライン参加者の連絡先を追加してください。</string>
     <string name="network_relay_connected">参加者の中継経由で接続しています。</string>
     <string name="network_direct_unverified">直接接続用アドレスは外部から未検証です。</string>
+    <string name="vpn_scope_selected">選択したアプリ</string>
+    <string name="vpn_scope_all">デバイス全体</string>
+    <string name="vpn_scope_help">デバイス全体では、DNSとIPv6を含む他のアプリの通信をノード経由にします。Uzelioは直接接続を使います。モードを切り替えてもアプリの選択は保持されます。</string>
 </resources>

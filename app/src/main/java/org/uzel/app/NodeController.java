@@ -30,7 +30,7 @@ public final class NodeController {
         Peer copy(){Peer p=new Peer();p.id=id;p.name=name;p.host=host;p.country=country;long now=System.currentTimeMillis();p.reachable=reachable && now-checkedAt<120_000 && (expiresAt==0 || expiresAt>now);p.clients=clients;p.latencyMs=latencyMs;p.paired=paired;p.autoDiscovered=autoDiscovered;p.announced=announced&&presence!=null&&presence.expiresAt>now;p.freeSlots=freeSlots;p.upload=upload;return p;}
     }
     public static final class Snapshot {
-        public boolean sharing,vpnConnected,busy,publicNetwork,bootstrapHosting;
+        public boolean sharing,vpnConnected,connecting,busy,publicNetwork,bootstrapHosting;
         public String discoveryState="NOT_CONFIGURED",discoveryURL="";
         public int bootstrapPort,directoryContacts;
         public long completedDiscoveryRefresh;
@@ -127,6 +127,7 @@ public final class NodeController {
     public Snapshot snapshot(){
         Snapshot s=new Snapshot();Node n=node;
         s.sharing=n!=null && n.isSharing();s.vpnConnected=vpnConnected;s.busy=busy;s.status=status;
+        s.connecting=!pendingAutoId.isEmpty()||(busy&&"CONNECTING".equals(status));
         s.country=country;s.publicIp=publicIp;s.advertisedHost=advertisedHost;
         s.connectedCountry=vpnConnected?connectedCountry:"";
         s.publicNetwork=publicNetwork;s.networkDetail=networkDetail;
@@ -277,13 +278,14 @@ public final class NodeController {
         if(peer.autoDiscovered&&!peer.paired&&peer.presence!=null){
             AutoDiscoveryManager manager=automatic;
             if(manager==null||!pendingAutoId.isEmpty()||peer.presence.expiresAt<=System.currentTimeMillis()){status="UNREACHABLE";return;}
-            if(AppSelection.validPackages(context).isEmpty()){status="SELECT_APPS";return;}
+            if(!AppSelection.vpnReady(context)){status="SELECT_APPS";return;}
             if(VpnService.prepare(context)!=null){status="ERROR";return;}
+            disconnect();
             pendingAutoId=peer.id;status="CONNECTING";manager.connect(peer.presence);return;
         }
         if(peer.invite==null && peer.route==null){status="UNREACHABLE";return;}
         if(peer.expiresAt>0 && peer.expiresAt<=System.currentTimeMillis()){status="UNREACHABLE";return;}
-        if(AppSelection.validPackages(context).isEmpty()){status="SELECT_APPS";return;}
+        if(!AppSelection.vpnReady(context)){status="SELECT_APPS";return;}
         if(VpnService.prepare(context)!=null){status="ERROR";return;}
         disconnect();
         busy=true;status="CONNECTING";long epoch=generation.get();
@@ -403,14 +405,14 @@ public final class NodeController {
             try{
                 Node.Info info=expected.inspect(peer.invite);
                 synchronized(this){
-                    if(epoch!=generation.get()||node!=expected||!pendingAutoId.equals(selected))return;
+                    if(epoch!=generation.get()||selectedVpnEpoch!=vpnGeneration.get()||node!=expected||!pendingAutoId.equals(selected))return;
                     peer.country=info.country;peer.clients=info.clients;peer.upload=info.upload;peer.freeSlots=Math.max(0,3-info.clients);
                     peer.latencyMs=info.latencyMs;peer.reachable=info.sharing&&info.upload>0;peer.checkedAt=System.currentTimeMillis();
                     pendingAutoId="";
                     if(!peer.reachable){status="UNREACHABLE";return;}
                 }
                 work.execute(()->{synchronized(this){if(epoch==generation.get()&&vpnGeneration.get()==selectedVpnEpoch&&node==expected)connect(selected);}});
-            }catch(IOException unavailable){synchronized(this){if(epoch==generation.get()&&pendingAutoId.equals(selected)){pendingAutoId="";status="UNREACHABLE";}}}
+            }catch(IOException unavailable){synchronized(this){if(epoch==generation.get()&&selectedVpnEpoch==vpnGeneration.get()&&pendingAutoId.equals(selected)){pendingAutoId="";status="UNREACHABLE";}}}
         });
     }
     public void createPairing(){PairingManager owner=pairing;if(owner!=null&&!busy)owner.offer();}

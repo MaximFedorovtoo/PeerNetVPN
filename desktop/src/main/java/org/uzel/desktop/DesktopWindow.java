@@ -17,6 +17,10 @@ final class DesktopWindow extends JPanel {
     private final Path root;
     private final DesktopBackend backend;
     private final ExecutorService worker=Executors.newSingleThreadExecutor(r->{Thread t=new Thread(r,"uzelio-desktop");t.setDaemon(true);return t;});
+    private final ExecutorService connectionWorker=Executors.newSingleThreadExecutor(r->{Thread t=new Thread(r,"uzelio-connection");t.setDaemon(true);return t;});
+    private final ExecutorService connectionControl=Executors.newSingleThreadExecutor(r->{Thread t=new Thread(r,"uzelio-connection-control");t.setDaemon(true);return t;});
+    private Future<?> connectionTask;
+    private long connectionRequest;
     private final Page page=new Page();
     private final JPanel header=new JPanel(null){public void doLayout(){for(Component c:getComponents())c.setBounds(tab==0?getWidth()-77:12,12,58,54);}protected void paintComponent(Graphics raw){Graphics2D g=quality(raw);g.setColor(BG);g.fillRect(0,0,getWidth(),getHeight());if(tab==0){text(g,"Uzel",24,48,32,TEXT,true);FontMetrics fm=g.getFontMetrics();text(g,"io",24+fm.stringWidth("Uzel"),48,32,CYAN,true);DesktopArtwork.paint(g,"settings",getWidth()-67,18,40,TEXT);}else{DesktopArtwork.paint(g,"back",19,24,30,TEXT);text(g,new String[]{"","Карта сети","Трафик","Профиль"}[tab],64,47,27,TEXT,true);}g.dispose();}};
     private final JPanel nav=new JPanel(new GridLayout(1,4));
@@ -24,6 +28,7 @@ final class DesktopWindow extends JPanel {
     private DesktopBackend.Snapshot state;
     private DesktopTrafficService.Snapshot traffic;
     private int selectedCount;
+    private DesktopRoutingMode routingMode=DesktopRoutingMode.SELECTED_APPLICATIONS;
     private WindowsAppRouter.Availability routingAvailability=new WindowsAppRouter.Availability(false,false,"");
     private WindowsAppRouter.Snapshot routingState=new WindowsAppRouter.Snapshot(false,"OFF","");
     private boolean routingObserved;
@@ -53,11 +58,11 @@ final class DesktopWindow extends JPanel {
     void open(){frame=new JFrame("Uzelio");frame.setContentPane(this);Rectangle usable=GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds();frame.setMinimumSize(new Dimension(Math.min(450,usable.width),Math.min(700,usable.height)));frame.setSize(Math.min(520,usable.width),Math.min(900,usable.height));frame.setLocation(usable.x+(usable.width-frame.getWidth())/2,usable.y+(usable.height-frame.getHeight())/2);frame.setIconImage(DesktopMain.icon());frame.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);frame.addWindowListener(new WindowAdapter(){public void windowClosing(WindowEvent e){if(tray==null)exit();else frame.setVisible(false);}});installTray();timer.start();frame.addNotify();String captionStatus=WindowsCaption.apply(frame);frame.setVisible(true);frame.toFront();if((Boolean.getBoolean("uzelio.previewMetrics")||Boolean.getBoolean("peernet.previewMetrics")))SwingUtilities.invokeLater(()->{try{Files.writeString(root.resolve("window-metrics.txt"),"frame="+frame.getBounds()+"\npage="+page.getSize()+"\nusable="+usable+"\ntransform="+frame.getGraphicsConfiguration().getDefaultTransform()+"\nvisible="+frame.isVisible()+",showing="+frame.isShowing()+",active="+frame.isActive()+",state="+frame.getExtendedState()+"\ncaption="+captionStatus);}catch(Exception ignored){}});}
     private void buildNav(){nav.removeAll();String[] names={"Главная","Карта","Трафик","Профиль"},icons={"home","map","traffic","profile"};for(int i=0;i<4;i++){final int index=i;JButton item=new JButton(){protected void paintComponent(Graphics raw){Graphics2D g=quality(raw);Color c=index==tab?CYAN:MUTED;DesktopArtwork.paint(g,icons[index],getWidth()/2.0-14,9,28,c);g.setFont(new Font("Segoe UI",index==tab?Font.BOLD:Font.PLAIN,12));g.setColor(c);int width=g.getFontMetrics().stringWidth(names[index]);g.drawString(names[index],(getWidth()-width)/2,56);if(hasFocus()){g.setColor(CYAN);g.drawRoundRect(5,4,getWidth()-11,getHeight()-9,12,12);}g.dispose();}};item.setContentAreaFilled(false);item.setBorder(null);item.setToolTipText(names[i]);item.getAccessibleContext().setAccessibleName(names[i]);item.addActionListener(e->showTab(index));nav.add(item);}nav.revalidate();nav.repaint();}
     void showTab(int next){tab=next;page.revalidate();page.repaint();header.revalidate();header.repaint();nav.repaint();scroll.getVerticalScrollBar().setValue(0);if(next==1&&!previewRendering)search();}
-    private void refresh(){if(refreshPending||observer.isShutdown())return;refreshPending=true;observer.submit(()->{try{var next=backend.snapshot();var observed=backend.devices();var transfer=backend.traffic();int apps=backend.selectedApplications().size();var availability=backend.routingAvailability();var routing=backend.routingState();var discovery=backend.discoveryStatus();Set<String> ready=new HashSet<>(),routes=new HashSet<>();for(var d:observed){if(backend.canConnect(d.fingerprint()))ready.add(d.fingerprint());if(backend.hasTrafficRoute(d.fingerprint()))routes.add(d.fingerprint());}SwingUtilities.invokeLater(()->{state=next;devices=observed;traffic=transfer;selectedCount=apps;routingAvailability=availability;routingState=routing;routingObserved=true;discoveryStatus=discovery==null?new DesktopBackend.DiscoveryStatus("NOT_STARTED","",0):discovery;routedDevices.clear();routedDevices.addAll(routes);connectable.clear();connectable.addAll(ready);refreshPending=false;page.revalidate();page.repaint();});}catch(Exception e){SwingUtilities.invokeLater(()->refreshPending=false);}});}
+    private void refresh(){if(refreshPending||observer.isShutdown())return;refreshPending=true;observer.submit(()->{try{var next=backend.snapshot();var observed=backend.devices();var transfer=backend.traffic();int apps=backend.selectedApplications().size();var mode=backend.routingMode();var availability=backend.routingAvailability();var routing=backend.routingState();var discovery=backend.discoveryStatus();Set<String> ready=new HashSet<>(),routes=new HashSet<>();for(var d:observed){if(backend.canConnect(d.fingerprint()))ready.add(d.fingerprint());if(backend.hasTrafficRoute(d.fingerprint()))routes.add(d.fingerprint());}SwingUtilities.invokeLater(()->{state=next;devices=observed;traffic=transfer;selectedCount=apps;routingMode=mode==null?DesktopRoutingMode.SELECTED_APPLICATIONS:mode;routingAvailability=availability;routingState=routing;routingObserved=true;discoveryStatus=discovery==null?new DesktopBackend.DiscoveryStatus("NOT_STARTED","",0):discovery;routedDevices.clear();routedDevices.addAll(routes);connectable.clear();connectable.addAll(ready);refreshPending=false;page.revalidate();page.repaint();});}catch(Exception e){SwingUtilities.invokeLater(()->refreshPending=false);}});}
     private void run(Work action){if(busy)return;busy=true;page.repaint();worker.submit(()->{String failure="";try{action.run();}catch(Exception e){failure=e.getMessage()==null?"Не удалось выполнить действие":e.getMessage();}String result=failure;SwingUtilities.invokeLater(()->{error=result;busy=false;refresh();});});}
     private void toggle(){run(()->{if(backend.snapshot().running())backend.stop();else backend.start(DesktopConfig.load(root));});}
     private void toggleSharing(){if(traffic.sharing()||traffic.measuring()){Thread cancel=new Thread(()->{backend.stopSharing();SwingUtilities.invokeLater(this::refresh);},"uzelio-stop-sharing");cancel.setDaemon(true);cancel.start();}else run(()->{if(!backend.snapshot().running())backend.start(DesktopConfig.load(root));backend.startSharing();});}
-    private void cancelConnection(){Thread cancel=new Thread(()->{backend.disconnect();SwingUtilities.invokeLater(this::refresh);},"uzelio-disconnect");cancel.setDaemon(true);cancel.start();}
+    private void cancelConnection(){++connectionRequest;connectionControl.submit(()->{if(connectionTask!=null)connectionTask.cancel(true);backend.disconnect();SwingUtilities.invokeLater(this::refresh);});}
     private static String bytes(long value){return value>=1_000_000_000?String.format(Locale.forLanguageTag("ru"),"%.1f ГБ",value/1e9):value>=1_000_000?String.format(Locale.forLanguageTag("ru"),"%.1f МБ",value/1e6):String.format(Locale.forLanguageTag("ru"),"%.1f КБ",value/1e3);}
     private static String speed(long value){return String.format(Locale.forLanguageTag("ru"),"%.1f Мбит/с",value/125000.0);}
     private void search(){
@@ -87,7 +92,7 @@ final class DesktopWindow extends JPanel {
             card(g,x,8,w,174);DesktopArtwork.paint(g,"network",x+9,17,99,CYAN);
             int titleSize=w<410?18:21;
             text(g,traffic.connected()?"Вы подключены":traffic.measuring()?"Измеряем скорость":traffic.sharing()?"Раздача включена":"Раздача выключена",x+115,55,titleSize,TEXT,true);
-            text(g,traffic.connected()?"TCP/UDP выбранных приложений":traffic.sharing()?"Выберите узел для подключения":"Включите, чтобы подключаться",x+115,80,w<410?11:12,MUTED,false);
+            text(g,traffic.connected()?(routingMode==DesktopRoutingMode.ALL_TRAFFIC?"TCP/UDP всей системы":"TCP/UDP выбранных приложений"):traffic.sharing()?"Выберите узел для подключения":"Включите, чтобы подключаться",x+115,80,w<410?11:12,MUTED,false);
             text(g,traffic.measuring()?"Можно остановить замер":traffic.sharing()?(traffic.shareRateLimit()==0?"Без ограничения":speed(traffic.shareRateLimit())):"Ваш трафик — под вашим контролем",x+115,102,w<410?11:12,MUTED,false);
             boolean connecting="CONNECTING".equals(traffic.status())||"AWAITING_UAC".equals(routingState.status());
             int bw=(w-36)/2;action(g,traffic.connected()?"Отключиться":connecting?"Отменить":"Выбрать узел",x+12,122,bw,46,false,true,()->{if(traffic.connected()||connecting)cancelConnection();else showTab(1);});
@@ -97,13 +102,13 @@ final class DesktopWindow extends JPanel {
             card(g,x,195,w,74);int cw=w/3;String[] labels={"Получено","Отдано","Подключено"},values={bytes(traffic.receivedBytes()),bytes(traffic.sharedBytes()),traffic.clients()+" из 3"};for(int i=0;i<3;i++){if(i>0){g.setColor(new Color(0x28435A));g.drawLine(x+i*cw,212,x+i*cw,250);}text(g,labels[i],x+15+i*cw,220,12,MUTED,false);text(g,values[i],x+15+i*cw,249,18,TEXT,true);}
             card(g,x,282,w,272);text(g,"Узлы по всему миру",x+16,311,17,TEXT,true);DesktopArtwork.paint(g,"chevron",x+w-35,291,20,MUTED);
             DesktopWorldMap.paint(g,x+8,322,w-16,167,counts(),region);action(g,"Открыть карту",x+13,497,w-26,44,false,true,()->showTab(1));
-            card(g,x,567,w,98);text(g,"Приложения",x+16,596,17,TEXT,true);DesktopArtwork.paint(g,"chevron",x+w-35,577,20,MUTED);DesktopArtwork.paint(g,"apps",x+16,609,34,CYAN);text(g,selectedCount==0?"Выберите приложения":"Выбрано: "+selectedCount,x+60,635,14,MUTED,false);hits.add(new Hit("Выбрать приложения",new Rectangle(x,567,w,98),DesktopWindow.this::applicationsDialog,!busy));
+            card(g,x,567,w,98);text(g,"Режим подключения",x+16,596,17,TEXT,true);DesktopArtwork.paint(g,"chevron",x+w-35,577,20,MUTED);DesktopArtwork.paint(g,"apps",x+16,609,34,CYAN);text(g,routingMode==DesktopRoutingMode.ALL_TRAFFIC?"Вся система":needsApplications()?"Выберите приложения":"Выбрано: "+selectedCount,x+60,635,14,MUTED,false);hits.add(new Hit("Режим подключения",new Rectangle(x,567,w,98),DesktopWindow.this::routingModeDialog,!busy));
             wrapped(g,routingHint(),x+5,689,w-10,13,MUTED);if(!error.isEmpty())wrapped(g,error,x+5,739,w-10,13,new Color(0xFF8E9A));
         }
         private void map(Graphics2D g,int x,int w){
             text(g,"Найдено: "+devices.size()+" · доступная часть сети",x,26,14,MUTED,false);
-            boolean prerequisite=traffic.measuring()||!traffic.sharing()||selectedCount==0||!routingAvailability.installed();
-            if(prerequisite){String title=traffic.measuring()?"Дождитесь замера":!traffic.sharing()?"Включить раздачу":selectedCount==0?"Выбрать приложения":!routingAvailability.supported()?"Нужна Windows x64":"Компонент Windows";action(g,title,x,40,w,40,false,!traffic.measuring()&&(routingAvailability.supported()||!traffic.sharing()||selectedCount==0),DesktopWindow.this::resolvePrerequisite);}
+            boolean prerequisite=traffic.measuring()||!traffic.sharing()||needsApplications()||!routingAvailability.installed();
+            if(prerequisite){String title=traffic.measuring()?"Дождитесь замера":!traffic.sharing()?"Включить раздачу":needsApplications()?"Выбрать приложения":!routingAvailability.supported()?"Нужна Windows x64":"Компонент Windows";action(g,title,x,40,w,40,false,!traffic.measuring()&&(routingAvailability.supported()||!traffic.sharing()||needsApplications()),DesktopWindow.this::resolvePrerequisite);}
             DesktopWorldMap.paint(g,0,prerequisite?88:40,getWidth(),prerequisite?184:232,counts(),region);
             if(!devices.isEmpty()) {
             String[] names={"Все","Европа","Азия","Америка","Африка","Океания","Не указан"};int[] order={0,4,3,2,1,5,6};
@@ -121,7 +126,7 @@ final class DesktopWindow extends JPanel {
                 int last=hits.size()-1;Hit query=hits.get(last);hits.set(last,new Hit(query.title,query.bounds,query.action,!pending));
             }else{action(g,searching?"Поиск…":"Обновить поиск",x,y,w,44,true,!searching,DesktopWindow.this::search);y+=59;for(var d:list){card(g,x,y,w,100);String country=DeviceDirectoryView.regionName(d.country());text(g,country,x+17,y+29,18,TEXT,true);text(g,d.advertisedUpload()>0?"Свободно "+Math.max(0,3-d.clients())+" из 3":"Нагрузка не проверена",x+17,y+54,13,MUTED,false);boolean ready=connectable.contains(d.fingerprint());text(g,connectionReason(d.fingerprint()),x+17,y+78,12,MUTED,false);
                 String prerequisiteTitle=prerequisiteActionTitle();int buttonWidth=prerequisiteTitle==null?120:190;
-                boolean canResolve=routingObserved&&!traffic.measuring()&&(!traffic.sharing()||selectedCount==0||routingAvailability.supported());
+                boolean canResolve=routingObserved&&!traffic.measuring()&&(!traffic.sharing()||needsApplications()||routingAvailability.supported());
                 action(g,prerequisiteTitle==null?"Подключить":prerequisiteTitle,x+w-buttonWidth-15,y+43,buttonWidth,48,true,prerequisiteTitle==null?ready:canResolve,prerequisiteTitle==null?()->connectPeer(d.fingerprint()):DesktopWindow.this::resolvePrerequisite);y+=113;}}
             if(searched)text(g,"Проверено каталогов: "+visited+(searchPartial?" · показана часть сети":" · запрос завершён"),x,list.isEmpty()?y+253:y+20,12,MUTED,false);
         }
@@ -135,7 +140,7 @@ final class DesktopWindow extends JPanel {
             text(g,"Прямое подключение к раздаче",x+5,312,14,MUTED,false);
             action(g,"Код раздачи",x,323,half,48,false,traffic.sharing()&&!traffic.measuring(),()->exportCode(true));
             action(g,"Добавить код узла",x+half+12,323,half,48,false,true,()->importCode(true));
-            action(g,"Приложения",x,385,w,48,false,true,DesktopWindow.this::applicationsDialog);
+            action(g,"Режим подключения",x,385,w,48,false,true,DesktopWindow.this::routingModeDialog);
             action(g,"Скорость раздачи",x,447,w,48,false,true,DesktopWindow.this::rateDialog);
             action(g,"Компонент Windows",x,509,half,48,false,true,DesktopWindow.this::routingDialog);
             action(g,"Дополнительно",x+half+12,509,half,48,false,!state.running(),DesktopWindow.this::settingsDialog);
@@ -154,27 +159,47 @@ final class DesktopWindow extends JPanel {
     private static void button(Graphics2D g,String title,int x,int y,int w,int h,boolean primary,boolean enabled){g.setColor(new Color(0,4,10,160));g.fillRoundRect(x,y+4,w,h,32,32);Color top=primary?new Color(0x55FFFF):new Color(0x234B63),bottom=primary?new Color(0x04B8CD):new Color(0x102C42);if(!enabled){top=new Color(0x153449);bottom=new Color(0x102839);}g.setPaint(new GradientPaint(x,y,top,x,y+h,bottom));g.fillRoundRect(x,y,w,h-2,32,32);g.setColor(primary&&enabled?new Color(0x83FFFF):new Color(0x3B6076));g.drawRoundRect(x+1,y+1,w-3,h-4,30,30);g.setFont(font(14,true));g.setColor(!enabled?new Color(0x8296A9):primary?BG:TEXT);FontMetrics fm=g.getFontMetrics();g.drawString(title,x+(w-fm.stringWidth(title))/2,y+(h+fm.getAscent()-fm.getDescent())/2-1);}
     private JPanel form(){JPanel p=new JPanel();p.setBackground(new Color(0x092135));p.setLayout(new BoxLayout(p,BoxLayout.Y_AXIS));p.setBorder(BorderFactory.createEmptyBorder(20,20,20,20));return p;}
     private void connectPeer(String fingerprint){
-        if(selectedCount==0){applicationsDialog();return;}
-        run(()->backend.connect(fingerprint));
+        if(needsApplications()){applicationsDialog();return;}
+        if(busy)return;
+        long request=++connectionRequest;
+        connectionControl.submit(()->{
+            if(connectionTask!=null)connectionTask.cancel(true);backend.disconnect();
+            connectionTask=connectionWorker.submit(()->{
+                String failure="";try{backend.connect(fingerprint);}catch(Exception e){failure=e.getMessage()==null?"Не удалось подключиться":e.getMessage();}
+                String result=failure;SwingUtilities.invokeLater(()->{if(connectionRequest==request){error=result;refresh();}});
+            });
+        });
+    }
+    private boolean needsApplications(){return routingMode==DesktopRoutingMode.SELECTED_APPLICATIONS && selectedCount==0;}
+    private void routingModeDialog(){
+        JPanel panel=form();panel.add(label("Режим подключения"));
+        JRadioButton selected=radio("Выбранные приложения",routingMode==DesktopRoutingMode.SELECTED_APPLICATIONS),whole=radio("Вся система",routingMode==DesktopRoutingMode.ALL_TRAFFIC);
+        ButtonGroup group=new ButtonGroup();group.add(selected);group.add(whole);panel.add(selected);panel.add(whole);
+        panel.add(note("TCP/UDP выбранных приложений или всей системы, для всех пользователей Windows. Список приложений сохраняется при смене режима.",3));
+        panel.add(note("Uzelio, сетевой компонент, VPN и службы Windows идут напрямую. DNS, неопознанные процессы, фрагменты IPv6 и сбой компонента также могут оставить прямой выход.",4));
+        JDialog dialog=dialog("Режим подключения",panel);
+        panel.add(formButton("Выбрать приложения",()->{dialog.dispose();applicationsDialog();}));
+        panel.add(formButton("Сохранить",()->run(()->{backend.setRoutingMode(whole.isSelected()?DesktopRoutingMode.ALL_TRAFFIC:DesktopRoutingMode.SELECTED_APPLICATIONS);SwingUtilities.invokeLater(dialog::dispose);})));
+        dialog.setSize(460,530);dialog.setLocationRelativeTo(frame);dialog.setVisible(true);
     }
     private String prerequisiteActionTitle(){
         if(!routingObserved)return "Проверяем настройки";
         if(traffic.measuring())return "Дождитесь замера";
         if(!traffic.sharing())return "Включить раздачу";
-        if(selectedCount==0)return "Выбрать приложения";
+        if(needsApplications())return "Выбрать приложения";
         if(!routingAvailability.supported())return "Нужна Windows x64";
         return routingAvailability.installed()?null:"Компонент Windows";
     }
-    private String connectionReason(String fingerprint){if(!routedDevices.contains(fingerprint)&&connectable.contains(fingerprint))return "Автоматическое сопряжение";return routingObserved?DesktopConnectionPresentation.reason(traffic.sharing(),traffic.measuring(),selectedCount,routingAvailability.supported(),routingAvailability.installed(),connectable.contains(fingerprint)):"Проверяем настройки";}
+    private String connectionReason(String fingerprint){if(!routedDevices.contains(fingerprint)&&connectable.contains(fingerprint))return "Автоматическое сопряжение";return routingObserved?DesktopConnectionPresentation.reason(traffic.sharing(),traffic.measuring(),routingMode==DesktopRoutingMode.ALL_TRAFFIC?1:selectedCount,routingAvailability.supported(),routingAvailability.installed(),connectable.contains(fingerprint)):"Проверяем настройки";}
     private String routingHint(){
         if(!routingObserved)return "Проверяем сетевой компонент…";
         if(!routingAvailability.supported())return "Маршрутизация приложений требует Windows x64";
         if(!routingAvailability.installed())return "Нужен сетевой компонент Windows · подробнее в профиле";
         if("AWAITING_UAC".equals(routingState.status()))return "Ожидаем подтверждение Windows";
         if("FAILED".equals(routingState.status()))return "Компонент остановлен · приложения могут идти напрямую";
-        return traffic.connected()?"Компонент запущен · проверьте связь приложений":selectedCount==0?"Выберите приложения для подключения":"Компонент установлен · выберите узел";
+        return traffic.connected()?"Компонент запущен · проверьте связь приложений":needsApplications()?"Выберите приложения для подключения":"Компонент установлен · выберите узел";
     }
-    private void resolvePrerequisite(){if(traffic.measuring())return;if(!traffic.sharing())toggleSharing();else if(selectedCount==0)applicationsDialog();else routingDialog();}
+    private void resolvePrerequisite(){if(traffic.measuring())return;if(!traffic.sharing())toggleSharing();else if(needsApplications())applicationsDialog();else routingDialog();}
     private void routingDialog(){JPanel panel=form();panel.add(label("Сетевой компонент Windows"));panel.add(note(routingAvailability.installed()?"Компонент установлен. При подключении к узлу Windows может запросить подтверждение.":"UPDATE_WINDOWS_ROUTING_SETUP".equals(routingAvailability.detail())?"Нужно обновить сетевой компонент для Uzelio. Потребуется разрешение Windows.":routingAvailability.supported()?"Для выбранных приложений нужна однократная установка. Потребуется разрешение Windows.":"Маршрутизация приложений поддерживается в Windows x64.",3));panel.add(note("Выбор применяется к именам процессов для всех пользователей. DNS использует обычную сеть. Фрагменты IPv6 и сбой компонента также могут оставить прямой выход.",3));JDialog d=dialog("Компонент Windows",panel);JButton setup=routingSetupAction(routingAvailability,this::routingSetupDialog);if(setup!=null)panel.add(setup);panel.add(formButton("Понятно",d::dispose));d.setSize(440,410);d.setVisible(true);}
     private void routingSetupDialog(){routingSetupDialog(()->{});}
     private void routingSetupDialog(Runnable onInstalled){JPanel panel=form();panel.add(label("Установка сетевого компонента"));panel.add(note("Потребуется подтверждение Windows. Устанавливаются ProxiFyre и драйвер Windows Packet Filter.",2));panel.add(note("ProxiFyre — AGPL-3.0. Драйвер бесплатен для личного использования; для коммерческого нужна отдельная лицензия.",3));panel.add(link("Лицензия ProxiFyre", "https://github.com/wiresock/proxifyre/blob/5e3bc845d73a47a0931b1233c745580cb916f4ba/LICENSE"));panel.add(link("Условия Windows Packet Filter", "https://www.ntkernel.com/windows-packet-filter/"));JLabel status=label(" ");panel.add(status);JDialog d=dialog("Условия установки",panel);JButton install=formButton("Принять условия и установить",()->{status.setText("Ожидаем подтверждение Windows…");run(()->{try{WindowsRoutingSetup.install();SwingUtilities.invokeLater(()->{status.setText("Компонент установлен");onInstalled.run();refresh();});}catch(Exception error){SwingUtilities.invokeLater(()->status.setText(error.getMessage()));}});});panel.add(install);panel.add(formButton("Закрыть",d::dispose));d.setSize(450,460);d.setLocationRelativeTo(frame);d.setVisible(true);}
@@ -246,6 +271,6 @@ final class DesktopWindow extends JPanel {
     }catch(Exception e){error=e.getMessage();}}
     private void installTray(){if(!SystemTray.isSupported())return;try{PopupMenu menu=new PopupMenu();MenuItem show=new MenuItem("Uzelio"),exit=new MenuItem("Выйти");show.addActionListener(e->SwingUtilities.invokeLater(()->{frame.setVisible(true);frame.toFront();}));exit.addActionListener(e->SwingUtilities.invokeLater(this::exit));menu.add(show);menu.add(exit);tray=new TrayIcon(DesktopMain.icon(),"Uzelio",menu);tray.setImageAutoSize(true);SystemTray.getSystemTray().add(tray);}catch(AWTException ignored){tray=null;}}
     private void exit(){timer.stop();Thread closing=new Thread(()->{backend.close();if(tray!=null)SystemTray.getSystemTray().remove(tray);System.exit(0);},"uzelio-close");closing.setDaemon(true);closing.start();}
-    void renderPreview(Path directory)throws Exception {previewRendering=true;Files.createDirectories(directory);for(int[] size:new int[][]{{520,870},{450,670}}){setSize(size[0],size[1]);for(int next:new int[]{0,1,2,3}){showTab(next);layoutTree(this);BufferedImage image=new BufferedImage(size[0],size[1],BufferedImage.TYPE_INT_RGB);Graphics2D g=image.createGraphics();printAll(g);g.dispose();String suffix=size[0]==450?"-min":"";ImageIO.write(image,"png",directory.resolve(new String[]{"home","map","traffic","profile"}[next]+suffix+".png").toFile());}}timer.stop();worker.shutdownNow();observer.shutdownNow();iconWorker.shutdownNow();discoveryWorker.shutdownNow();}
+    void renderPreview(Path directory)throws Exception {previewRendering=true;Files.createDirectories(directory);for(int[] size:new int[][]{{520,870},{450,670}}){setSize(size[0],size[1]);for(int next:new int[]{0,1,2,3}){showTab(next);layoutTree(this);BufferedImage image=new BufferedImage(size[0],size[1],BufferedImage.TYPE_INT_RGB);Graphics2D g=image.createGraphics();printAll(g);g.dispose();String suffix=size[0]==450?"-min":"";ImageIO.write(image,"png",directory.resolve(new String[]{"home","map","traffic","profile"}[next]+suffix+".png").toFile());}}timer.stop();worker.shutdownNow();connectionControl.shutdownNow();connectionWorker.shutdownNow();observer.shutdownNow();iconWorker.shutdownNow();discoveryWorker.shutdownNow();}
     private static void layoutTree(Container container){container.doLayout();for(Component c:container.getComponents())if(c instanceof Container child)layoutTree(child);}
 }

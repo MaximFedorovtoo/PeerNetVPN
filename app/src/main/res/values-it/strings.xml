@@ -94,4 +94,7 @@
     <string name="network_bootstrap_required">Aggiungi il contatto di un partecipante noto e attivo per entrare nella rete.</string>
     <string name="network_relay_connected">Connesso tramite un partecipante di inoltro.</string>
     <string name="network_direct_unverified">L’indirizzo diretto non è stato verificato dall’esterno.</string>
+    <string name="vpn_scope_selected">App selezionate</string>
+    <string name="vpn_scope_all">Intero dispositivo</string>
+    <string name="vpn_scope_help">Intero dispositivo instrada le altre app, inclusi DNS e IPv6, tramite il nodo. Uzelio mantiene la connessione diretta. La selezione resta salvata quando cambi modalità.</string>
 </resources>

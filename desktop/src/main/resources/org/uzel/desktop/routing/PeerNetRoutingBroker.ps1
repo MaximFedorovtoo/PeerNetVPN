@@ -36,7 +36,8 @@ function Assert-ProtectedPath([string]$Path) {
 
 function ConvertTo-PeerNetConfig($Model) {
     $props=@($Model.PSObject.Properties.Name)
-    if((($props|Sort-Object) -join ',') -ne 'bypassLan,excludes,logLevel,proxies'){throw 'Invalid routing request'}
+    if((($props|Sort-Object) -join ',') -ne 'bypassLan,excludes,logLevel,proxies,routingMode'){throw 'Invalid routing request'}
+    if($Model.routingMode -isnot [string] -or $Model.routingMode -cnotin @('SELECTED_APPLICATIONS','ALL_TRAFFIC')){throw 'Invalid routing mode'}
     if($Model.logLevel -cne 'Error' -or $Model.bypassLan -isnot [bool] -or $Model.bypassLan -or @($Model.proxies).Count -ne 1){throw 'Invalid routing request'}
     $p=$Model.proxies[0]
     $expected='appNames,password,socks5ProxyEndpoint,socks5Transport,supportedAddressFamilies,supportedProtocols,username'
@@ -47,11 +48,14 @@ function ConvertTo-PeerNetConfig($Model) {
     foreach($credential in @($p.username,$p.password)){
         if($credential -isnot [string] -or $credential.Length -eq 0 -or [Text.Encoding]::UTF8.GetByteCount($credential) -gt 255){throw 'Invalid credentials'}
     }
-    $carriers=@('peernet.exe','uzelio.exe','uzel.exe','java.exe','javaw.exe','proxifyre.exe','powershell.exe','pwsh.exe')
+    $carriers=@('peernet.exe','uzelio.exe','uzel.exe','java.exe','javaw.exe','proxifyre.exe','powershell.exe','pwsh.exe','openvpn.exe','openvpnconnect.exe','ovpnconnector.exe','agent_ovpnconnect.exe','ovpnhelper_service.exe','wireguard.exe','wireguardmanager.exe','tailscale.exe','tailscaled.exe','svchost.exe')
     $names=@($p.appNames)
     if($names.Count -lt 1 -or $names.Count -gt 128){throw 'Select applications'}
+    $wholeSystem=$Model.routingMode -ceq 'ALL_TRAFFIC'
+    if($wholeSystem -and ($names.Count -ne 1 -or $names[0] -isnot [string] -or $names[0] -cne '')){throw 'Invalid whole-system rule'}
     $seen=@{}
     foreach($name in $names){
+        if($wholeSystem){continue}
         if($name -isnot [string] -or $name.Length -gt 260 -or $name -notmatch '^.[^\x00-\x1f\\/:*?"<>|]*\.exe$' -or
             $name -match '[\x00-\x1f\\/:*?"<>|]' -or $name -in $carriers -or $seen.ContainsKey($name)){throw 'Invalid executable name'}
         $seen[$name]=$true

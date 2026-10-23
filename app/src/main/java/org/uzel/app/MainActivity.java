@@ -230,7 +230,7 @@ public class MainActivity extends Activity {
         hero.addView(new PeerArtwork(this,"network",GREEN),new LinearLayout.LayoutParams(dp(84),dp(84)));
         LinearLayout summary=column();LinearLayout.LayoutParams sp=new LinearLayout.LayoutParams(0,-2,1);sp.setMarginStart(dp(10));hero.addView(summary,sp);status=label("",21,NAVY,true);summary.addView(status);address=label("",14,MUTED,false);summary.addView(address);c.addView(hero);
         LinearLayout actions=new LinearLayout(this);c.addView(actions);
-        vpnButton=button(actions,s("choose_node"),false,()->{if(controller.snapshot().vpnConnected)controller.disconnect();else showTab(1);});
+        vpnButton=button(actions,s("choose_node"),false,()->{NodeController.Snapshot x=controller.snapshot();if(x.vpnConnected||x.connecting){controller.disconnect();refresh();}else showTab(1);});
         sharingButton=button(actions,getString(R.string.ui_share),true,()->{NodeController.Snapshot x=controller.snapshot();if(x.sharing)controller.stopSharing();else{requestNotifications();controller.startSharing();}refresh();});
         for(int i=0;i<2;i++){LinearLayout.LayoutParams bp=new LinearLayout.LayoutParams(0,-2,1);bp.topMargin=dp(4);if(i==0)bp.setMarginEnd(dp(8));actions.getChildAt(i).setLayoutParams(bp);}
         LinearLayout stats=card();stats.setOrientation(LinearLayout.HORIZONTAL);
@@ -239,8 +239,9 @@ public class MainActivity extends Activity {
         networkMap=new NetworkMapView(this);map.addView(networkMap,new LinearLayout.LayoutParams(-1,dp(175)));networkMap.setOnRegionSelectedListener(region->{selectedRegion=region;showTab(1);});
         button(map,getString(R.string.ui_open_map),false,()->showTab(1));
         LinearLayout apps=card();LinearLayout ah=new LinearLayout(this);ah.setGravity(Gravity.CENTER_VERTICAL);ah.addView(label(getString(R.string.ui_apps),16,NAVY,true),new LinearLayout.LayoutParams(0,-2,1));ah.addView(new PeerArtwork(this,"chevron",MUTED),new LinearLayout.LayoutParams(dp(20),dp(20)));apps.addView(ah);apps.setOnClickListener(v->chooseApps());apps.setFocusable(true);apps.setContentDescription(getString(R.string.ui_choose_apps));
-        LinearLayout icons=new LinearLayout(this);for(String pkg:AppSelection.validPackages(this)){if(icons.getChildCount()>=5)break;try{FrameLayout tile=new FrameLayout(this);tile.setBackground(raised(false,14));ImageView icon=new ImageView(this);icon.setImageDrawable(getPackageManager().getApplicationIcon(pkg));icon.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);tile.addView(icon,new FrameLayout.LayoutParams(dp(35),dp(35),Gravity.CENTER));LinearLayout.LayoutParams ip=new LinearLayout.LayoutParams(dp(60),dp(54));ip.setMarginEnd(dp(10));icons.addView(tile,ip);}catch(android.content.pm.PackageManager.NameNotFoundException ignored){}}
-        if(icons.getChildCount()==0){icons.addView(new PeerArtwork(this,"apps",GREEN),new LinearLayout.LayoutParams(dp(38),dp(48)));TextView choose=label(getString(R.string.ui_choose_apps),14,MUTED,false);choose.setGravity(Gravity.CENTER_VERTICAL);icons.addView(choose,new LinearLayout.LayoutParams(-2,dp(48)));}
+        boolean allApps=AppSelection.allApplications(this);
+        LinearLayout icons=new LinearLayout(this);if(!allApps)for(String pkg:AppSelection.validPackages(this)){if(icons.getChildCount()>=5)break;try{FrameLayout tile=new FrameLayout(this);tile.setBackground(raised(false,14));ImageView icon=new ImageView(this);icon.setImageDrawable(getPackageManager().getApplicationIcon(pkg));icon.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);tile.addView(icon,new FrameLayout.LayoutParams(dp(35),dp(35),Gravity.CENTER));LinearLayout.LayoutParams ip=new LinearLayout.LayoutParams(dp(60),dp(54));ip.setMarginEnd(dp(10));icons.addView(tile,ip);}catch(android.content.pm.PackageManager.NameNotFoundException ignored){}}
+        if(icons.getChildCount()==0){icons.addView(new PeerArtwork(this,"apps",GREEN),new LinearLayout.LayoutParams(dp(38),dp(48)));TextView choose=label(getString(allApps?R.string.vpn_scope_all:R.string.ui_choose_apps),14,MUTED,false);choose.setGravity(Gravity.CENTER_VERTICAL);icons.addView(choose,new LinearLayout.LayoutParams(-2,dp(48)));}
         apps.addView(icons);
         detail=label("",14,0xffff8e9a,false); content.addView(detail);
     }
@@ -292,7 +293,7 @@ public class MainActivity extends Activity {
     private void settings() {
         LinearLayout apps = card();
         apps.addView(label(getString(R.string.ui_apps),18,NAVY,true));
-        apps.addView(label(s("apps_selected",AppSelection.validPackages(this).size()),15,NAVY,true));
+        apps.addView(label(AppSelection.allApplications(this)?getString(R.string.vpn_scope_all):s("apps_selected",AppSelection.validPackages(this).size()),15,NAVY,true));
         button(apps,getString(R.string.ui_choose_apps),false,this::chooseApps);
         LinearLayout sharingRate=card();
         sharingRate.addView(label(getString(R.string.sharing_rate_title),18,NAVY,true));
@@ -363,7 +364,7 @@ public class MainActivity extends Activity {
             sharingRateRequested.setVisibility(raised?View.VISIBLE:View.GONE);
         }
         if(sharingButton!=null){sharingButton.setText(getString(x.sharing?R.string.ui_sharing_on:R.string.ui_share));sharingButton.setContentDescription(getString(x.sharing?R.string.ui_stop_share:R.string.ui_share));sharingButton.setEnabled(x.sharing||!x.busy);}
-        if(vpnButton!=null){vpnButton.setText(s(x.vpnConnected?"disconnect":"choose_node"));vpnButton.setEnabled(!x.busy);}
+        if(vpnButton!=null){vpnButton.setText(s(x.vpnConnected?"disconnect":x.connecting?"cancel":"choose_node"));vpnButton.setEnabled(x.vpnConnected||x.connecting||!x.busy);}
         if(shareValue!=null)shareValue.setText(Formatter.formatFileSize(this,x.sharedBytes));
         if(receivedValue!=null)receivedValue.setText(Formatter.formatFileSize(this,x.receivedBytes));
         if(rateValue!=null)rateValue.setText(speed(x.uploadBps));
@@ -452,7 +453,7 @@ public class MainActivity extends Activity {
             String state=getString(p.reachable?R.string.ui_verified:R.string.ui_announced);
             boolean canConnect=SearchPresentation.canConnect(p.reachable,p.paired,announced,slots);
             boolean large=getResources().getConfiguration().fontScale>1.6f;
-            Button connect=button(large?c:row,getString(canConnect?R.string.ui_connect:R.string.ui_full),true,()->connect(p.id));if(!large){connect.setLayoutParams(new LinearLayout.LayoutParams(dp(124),dp(54)));connect.setMaxLines(1);connect.setAutoSizeTextTypeUniformWithConfiguration(10,14,1,android.util.TypedValue.COMPLEX_UNIT_SP);}connect.setEnabled(canConnect&&x.sharing&&!x.busy&&!x.vpnConnected);
+            Button connect=button(large?c:row,getString(canConnect?R.string.ui_connect:R.string.ui_full),true,()->connect(p.id));if(!large){connect.setLayoutParams(new LinearLayout.LayoutParams(dp(124),dp(54)));connect.setMaxLines(1);connect.setAutoSizeTextTypeUniformWithConfiguration(10,14,1,android.util.TypedValue.COMPLEX_UNIT_SP);}connect.setEnabled(canConnect&&x.sharing&&!x.busy);
             TextView meta=label(state,11,p.reachable?GREEN:MUTED,false);c.addView(meta);c.setContentDescription(country(p.country)+", "+state+", "+getString(R.string.ui_slots,slots));
         }
     }
@@ -537,7 +538,7 @@ public class MainActivity extends Activity {
         startActivity(Intent.createChooser(share,s("share_public_contact")));
     }
     private boolean hasSelectedApps() {
-        if (!AppSelection.validPackages(this).isEmpty()) return true;
+        if (AppSelection.vpnReady(this)) return true;
         new AlertDialog.Builder(this).setTitle(s("vpn_apps")).setMessage(s("apps_required"))
                 .setNegativeButton(s("cancel"), null)
                 .setPositiveButton(s("choose_apps"), (dialog, which) -> { showTab(3); chooseApps(); }).show();
@@ -546,11 +547,6 @@ public class MainActivity extends Activity {
 
     private void chooseApps() {
         List<AppSelection.App> candidates = AppSelection.candidateApps(this);
-        if (candidates.isEmpty()) {
-            new AlertDialog.Builder(this).setTitle(s("vpn_apps")).setMessage(s("apps_none"))
-                    .setPositiveButton(s("ok"),null).show();
-            return;
-        }
         Set<String> selected = new HashSet<>(AppSelection.load(this));
         List<AppSelection.App> shown = new java.util.ArrayList<>(candidates);
         ListView list = new ListView(this);
@@ -582,6 +578,11 @@ public class MainActivity extends Activity {
             if(list.isItemChecked(index))selected.add(packageName);else selected.remove(packageName);
         });
         LinearLayout panel=new LinearLayout(this);panel.setOrientation(LinearLayout.VERTICAL);
+        RadioGroup scope=new RadioGroup(this);scope.setPadding(dp(12),dp(4),dp(12),0);
+        RadioButton selectedMode=new RadioButton(this);selectedMode.setId(View.generateViewId());selectedMode.setText(R.string.vpn_scope_selected);scope.addView(selectedMode);
+        RadioButton allMode=new RadioButton(this);allMode.setId(View.generateViewId());allMode.setText(R.string.vpn_scope_all);scope.addView(allMode);
+        scope.check(AppSelection.allApplications(this)?allMode.getId():selectedMode.getId());panel.addView(scope);
+        TextView scopeHelp=label(getString(R.string.vpn_scope_help),12,MUTED,false);scopeHelp.setPadding(dp(18),dp(4),dp(18),dp(8));panel.addView(scopeHelp);
         EditText search=new EditText(this);search.setSingleLine(true);search.setHint(R.string.ui_search_apps);search.setPadding(dp(18),dp(10),dp(18),dp(10));panel.addView(search);
         search.addTextChangedListener(new android.text.TextWatcher(){
             public void beforeTextChanged(CharSequence text,int start,int count,int after){}
@@ -592,15 +593,19 @@ public class MainActivity extends Activity {
             }
             public void afterTextChanged(android.text.Editable text){}
         });
-        panel.addView(list,new LinearLayout.LayoutParams(-1,(int)(getResources().getDisplayMetrics().heightPixels*0.58f)));
+        panel.addView(list,new LinearLayout.LayoutParams(-1,(int)(getResources().getDisplayMetrics().heightPixels*0.42f)));
+        scope.setOnCheckedChangeListener((group,checked)->{boolean all=checked==allMode.getId();search.setVisibility(all?View.GONE:View.VISIBLE);list.setVisibility(all?View.GONE:View.VISIBLE);});
+        if(allMode.isChecked()){search.setVisibility(View.GONE);list.setVisibility(View.GONE);}
+        if(candidates.isEmpty()){TextView none=label(s("apps_none"),14,MUTED,false);none.setPadding(dp(18),dp(4),dp(18),dp(8));panel.addView(none);}
         AlertDialog dialog = new AlertDialog.Builder(this).setTitle(R.string.ui_apps)
                 .setView(panel)
                 .setNegativeButton(s("cancel"),null)
                 .setPositiveButton(s("save"),(choice,which) -> {
                     // Save first, then cancel an active or in-progress connection generation.
                     AppSelection.save(this,selected);
+                    AppSelection.saveAllApplications(this,allMode.isChecked());
                     controller.disconnect();
-                    showTab(3);
+                    showTab(selectedTab);
                     Toast.makeText(this,s("apps_saved"),Toast.LENGTH_LONG).show();
                 }).create();
         dialog.show();

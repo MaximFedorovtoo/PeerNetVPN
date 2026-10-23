@@ -8,6 +8,13 @@ import static org.junit.Assert.*;
 
 /** Runs without a driver or administrator privileges. */
 public class WindowsRoutingConfigTest {
+    @Test public void explicitWholeSystemModeEnablesCatchAllWithCarrierAndVpnExclusions()throws Exception {
+        Class<?> mode;try{mode=Class.forName("org.uzel.desktop.DesktopRoutingMode");}catch(ClassNotFoundException missing){fail("Explicit routing scope is missing");return;}
+        Object all=java.util.Arrays.stream(mode.getEnumConstants()).filter(value->value.toString().equals("ALL_TRAFFIC")).findFirst().orElseThrow();
+        String json=(String)WindowsRoutingConfig.class.getMethod("generate",mode,List.class,String.class,int.class,String.class,String.class).invoke(null,all,List.of(),"127.0.0.1",1080,"user","secret");
+        assertTrue(json.contains("\"routingMode\":\"ALL_TRAFFIC\""));assertTrue(json.contains("\"appNames\":[\"\"]"));
+        for(String carrier:List.of("uzelio.exe","java.exe","proxifyre.exe","openvpnconnect.exe","agent_ovpnconnect.exe","ovpnhelper_service.exe","svchost.exe"))assertTrue(carrier,json.contains("\""+carrier+"\""));
+    }
     private String config(List<String> apps,String user,String password)throws Exception {
         try {
             Class<?> type=Class.forName("org.uzel.desktop.routing.WindowsRoutingConfig");

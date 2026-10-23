@@ -45,20 +45,23 @@ public final class WindowsAppRouter implements AutoCloseable {
     }
     public synchronized Snapshot snapshot(){return state;}
     public void activate(List<Path> selected,DesktopTrafficService.ProxyEndpoint endpoint)throws IOException {
+        activate(DesktopRoutingMode.SELECTED_APPLICATIONS,selected,endpoint);
+    }
+    public void activate(DesktopRoutingMode mode,List<Path> selected,DesktopTrafficService.ProxyEndpoint endpoint)throws IOException {
         deactivate();Objects.requireNonNull(endpoint);
         final long epoch;
         synchronized(this){epoch=++generation;}
         if(!availability().installed())throw new IOException(availability().detail());
         List<String> names=new ArrayList<>();
         if(selected==null)throw new IOException("Select applications");
-        for(Path path:selected){
+        for(Path path:mode==DesktopRoutingMode.ALL_TRAFFIC?List.<Path>of():selected){
             if(path==null || !path.isAbsolute() || !Files.isRegularFile(path))throw new IOException("Application executable unavailable");
             Path canonical=path.toRealPath();
             if(!canonical.equals(path.normalize()))throw new IOException("Select the canonical application executable");
             names.add(canonical.getFileName().toString());
         }
         final String configuration;
-        try{configuration=WindowsRoutingConfig.generate(names,endpoint.host(),endpoint.port(),endpoint.username(),endpoint.password());}
+        try{configuration=WindowsRoutingConfig.generate(mode,names,endpoint.host(),endpoint.port(),endpoint.username(),endpoint.password());}
         catch(IllegalArgumentException invalid){throw new IOException(invalid.getMessage());}
         String name="PeerNet-Routing-"+UUID.randomUUID();
         long clientPid=ProcessHandle.current().pid();

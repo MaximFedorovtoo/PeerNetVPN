@@ -26,6 +26,8 @@ public interface DesktopBackend extends AutoCloseable {
     void disconnect();
     java.util.List<java.nio.file.Path> selectedApplications();
     void selectApplications(java.util.List<java.nio.file.Path> applications)throws Exception;
+    default DesktopRoutingMode routingMode(){return DesktopRoutingMode.SELECTED_APPLICATIONS;}
+    default void setRoutingMode(DesktopRoutingMode mode)throws Exception {throw new UnsupportedOperationException("Routing scope unavailable");}
     WindowsAppRouter.Availability routingAvailability();
     WindowsAppRouter.Snapshot routingState();
     void close();

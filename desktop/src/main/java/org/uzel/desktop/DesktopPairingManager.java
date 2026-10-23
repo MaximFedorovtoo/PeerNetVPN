@@ -59,12 +59,16 @@ final class DesktopPairingManager implements AutoCloseable {
     CompletableFuture<Invitation> connect(DiscoveryPresence recipient){
         CompletableFuture<Invitation> result=new CompletableFuture<>();
         submit(()->{
+            if(result.isCancelled())return;
             if(recipient==null || recipient.expiresAt<=System.currentTimeMillis() || recipient.fingerprint.equals(identity.fingerprint) || recipient.upload<=0 || recipient.clients>=3 || !node.isSharing() || node.measuredUpload()<=0){result.completeExceptionally(new IOException("Объявление устройства недоступно"));return;}
             Invitation established=invitations.get(recipient.fingerprint);if(established!=null){result.complete(established);return;}
             if(pending!=null || active.size()>=3){result.completeExceptionally(new IOException("Сопряжение уже выполняется или нет свободного места"));return;}
             Pair pair=new Pair(recipient.fingerprint,result,timeoutMillis);pending=pair;stage="GATHERING";
             try{create(pair);pair.transport.createOffer();}catch(Exception|LinkageError failure){fail(pair,"Не удалось запустить защищённое сопряжение");}
-        },result);return result;
+        },result);
+        result.whenComplete((invitation,error)->{if(result.isCancelled())submit(()->{
+            if(pending!=null && pending.completion==result){Pair cancelled=pending;pending=null;stage="CANCELLED";dispose(cancelled,"Сопряжение отменено");}
+        });});return result;
     }
     void cancelPending(String fingerprint){submit(()->{if(pending!=null && pending.target.equals(fingerprint)){Pair cancelled=pending;pending=null;stage="CANCELLED";dispose(cancelled,"Сопряжение отменено");}});}
     private void create(Pair pair)throws IOException {
@@ -128,7 +132,7 @@ final class DesktopPairingManager implements AutoCloseable {
     private void dispose(Pair pair,String message){if(pair.disposed)return;pair.completion.completeExceptionally(new IOException(message));disposeTransport(pair,true);}
     private void disposeTransport(Pair pair,boolean notify){
         if(pair.disposed)return;pair.disposed=true;active.remove(pair.target,pair);invitations.remove(pair.target);discovery.cancelSignals(pair.signals);
-        try{if(pair.registration!=null)pair.registration.close();if(notify)listener.unavailable(pair.target);}
+        try{if(pair.registration!=null)pair.registration.close();if(notify && pair.activated)listener.unavailable(pair.target);}
         finally{if(pair.transport!=null)pair.transport.close();}
     }
     private void submit(Runnable action){submit(action,null);}

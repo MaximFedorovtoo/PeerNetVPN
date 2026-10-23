@@ -43,19 +43,23 @@ public final class UzelVpnService extends VpnService {
                 .addAddress("fd00:757a:656c::1",128).addRoute("::",0)
                 .addDnsServer("1.1.1.1").addDnsServer("2606:4700:4700::1111")
                 .setUnderlyingNetworks(new Network[]{network});
-        // Calling establish without a single allowed app would route every app.
-        // Revalidate here even when a caller bypasses the Activity selection gate.
-        int allowed = 0;
-        for (String packageName : AppSelection.validPackages(this)) {
-            if (getPackageName().equals(packageName)) continue;
-            try {
-                builder.addAllowedApplication(packageName);
-                allowed++;
-            } catch (PackageManager.NameNotFoundException ignored) {
-                // An application may have been removed since the selection was read.
+        if(AppSelection.allApplications(this)) {
+            // Keep our node, discovery and peer forwarding on the physical connection.
+            builder.addDisallowedApplication(getPackageName());
+        } else {
+            // Empty selected-app mode must never silently widen to the whole device.
+            int allowed = 0;
+            for (String packageName : AppSelection.validPackages(this)) {
+                if (getPackageName().equals(packageName)) continue;
+                try {
+                    builder.addAllowedApplication(packageName);
+                    allowed++;
+                } catch (PackageManager.NameNotFoundException ignored) {
+                    // An application may have been removed since the selection was read.
+                }
             }
+            if (allowed == 0) throw new IOException("SELECT_APPS");
         }
-        if (allowed == 0) throw new IOException("SELECT_APPS");
         tunnel=builder.establish();
         if(tunnel==null)throw new IOException("VPN permission revoked");
         File config=new File(getFilesDir(),"tunnel.yml");

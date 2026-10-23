@@ -94,4 +94,7 @@
     <string name="network_bootstrap_required">请添加一个已知且在线的参与者的联系方式以加入网络。</string>
     <string name="network_relay_connected">已通过参与者中继连接。</string>
     <string name="network_direct_unverified">尚未从外部验证直接地址。</string>
+    <string name="vpn_scope_selected">所选应用</string>
+    <string name="vpn_scope_all">整个设备</string>
+    <string name="vpn_scope_help">整个设备模式会将其他应用（包括DNS和IPv6流量）通过节点连接。Uzelio保持直接连接。切换模式时保留应用选择。</string>
 </resources>

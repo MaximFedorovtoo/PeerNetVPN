@@ -12,6 +12,12 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.junit.Assert.*;
 
 public class DesktopPrerequisiteActionUiTest {
+    @Test public void wholeSystemModeDoesNotRequireAnApplicationSelection()throws Exception {
+        try(Fixture fixture=new Fixture(true,false,0,true,true,true)){
+            SwingUtilities.invokeAndWait(()->{try{set(fixture.view,"routingMode",DesktopRoutingMode.ALL_TRAFFIC);}catch(Exception e){throw new RuntimeException(e);}});
+            JButton action=fixture.deviceAction(false);assertEquals("Подключить",action.getAccessibleContext().getAccessibleName());assertTrue(action.isEnabled());
+        }
+    }
     @Test public void eachDeviceOffersMissingPrerequisiteAndOnlyConnectsWhenEligible()throws Exception {
         assertDeviceAction(true,false,0,true,true,false,false,"Выбрать приложения",true);
         assertDeviceAction(false,false,2,true,true,false,false,"Включить раздачу",true);
@@ -55,7 +61,8 @@ public class DesktopPrerequisiteActionUiTest {
                 case "devices"->List.of(new DeviceDirectoryView.Device("peer","RU",0,1000,Long.MAX_VALUE));
                 case "selectedApplications"->java.util.Collections.nCopies(applications,Path.of("Browser.exe"));
                 case "routingAvailability"->new WindowsAppRouter.Availability(supported,installed,"");
-                case "routingState"->new WindowsAppRouter.Snapshot(false,"OFF","");
+                case "routingMode"->DesktopRoutingMode.SELECTED_APPLICATIONS;
+            case "routingState"->new WindowsAppRouter.Snapshot(false,"OFF","");
                 case "discoveryStatus"->new DesktopBackend.DiscoveryStatus("ONLINE","",1);
                 case "canConnect"->eligible;
                 case "hasTrafficRoute"->{observed.countDown();yield true;}
@@ -83,7 +90,7 @@ public class DesktopPrerequisiteActionUiTest {
             throw new AssertionError("Device action absent");
         }
         public void close()throws Exception {
-            SwingUtilities.invokeAndWait(()->{try{((Timer)field(view,"timer")).stop();for(String executor:List.of("worker","observer","iconWorker","discoveryWorker"))((ExecutorService)field(view,executor)).shutdownNow();}catch(Exception e){throw new RuntimeException(e);}});
+            SwingUtilities.invokeAndWait(()->{try{((Timer)field(view,"timer")).stop();for(String executor:List.of("worker","connectionControl","connectionWorker","observer","iconWorker","discoveryWorker"))((ExecutorService)field(view,executor)).shutdownNow();}catch(Exception e){throw new RuntimeException(e);}});
         }
     }
 }

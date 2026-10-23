@@ -68,6 +68,16 @@ public class DesktopPairingManagerTest {
             f.fake.get().listener.state("CONNECTED");Thread.sleep(100);assertNull(f.manager.invitation(f.phoneIdentity.fingerprint));assertEquals(0,f.pc.clientCount());assertTrue(f.fake.get().closed);
         }
     }
+    @Test(timeout=15000) public void cancelledFutureRetiresOnlyItsPairAndAllowsSamePeerRetry()throws Exception {
+        try(Fixture f=new Fixture()){
+            CompletableFuture<Invitation> first=f.manager.connect(f.phonePresence);f.offer();FakeTransport old=f.fake.get();
+            assertTrue(first.cancel(true));await(()->old.closed);
+            CompletableFuture<Invitation> retry=f.manager.connect(f.phonePresence);await(()->f.fake.get()!=old);FakeTransport current=f.fake.get();
+            old.listener.state("FAILED");old.listener.state("CONNECTED");
+            assertFalse(retry.isDone());assertFalse(current.closed);
+            retry.cancel(true);await(()->current.closed);assertTrue(f.pc.isSharing());
+        }
+    }
     private static TlsIdentity identity()throws Exception {return IdentityStore.load(Files.createTempDirectory("uzelio-pair-identity-"));}
     private static void await(java.util.function.BooleanSupplier ready)throws Exception {long until=System.nanoTime()+TimeUnit.SECONDS.toNanos(3);while(!ready.getAsBoolean() && System.nanoTime()<until)Thread.sleep(10);assertTrue(ready.getAsBoolean());}
     private static final class Fixture implements AutoCloseable {

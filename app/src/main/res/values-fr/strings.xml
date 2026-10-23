@@ -94,4 +94,7 @@
     <string name="network_bootstrap_required">Ajoutez le contact d’un participant connu et actif pour rejoindre le réseau.</string>
     <string name="network_relay_connected">Connecté via un participant relais.</string>
     <string name="network_direct_unverified">L’adresse directe n’a pas été vérifiée depuis l’extérieur.</string>
+    <string name="vpn_scope_selected">Applications sélectionnées</string>
+    <string name="vpn_scope_all">Tout l’appareil</string>
+    <string name="vpn_scope_help">Tout l’appareil envoie les autres applications, y compris DNS et IPv6, via le nœud. Uzelio reste en accès direct. La sélection est conservée lors du changement de mode.</string>
 </resources>

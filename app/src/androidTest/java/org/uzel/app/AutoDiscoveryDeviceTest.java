@@ -52,14 +52,18 @@ public final class AutoDiscoveryDeviceTest extends InstrumentationTestCase {
         assertFalse("Controller must be idle",originalState.busy);
         String originalUrl=originalState.discoveryURL;
         Set<String> originalSelection=new HashSet<>(AppSelection.load(context));
+        boolean originalAll=AppSelection.allApplications(context);
         File stop=new File(context.getFilesDir(),"auto-vpn-stop");
         File bootstrapOff=new File(context.getFilesDir(),"auto-bootstrap-off");
+        File control=new File(context.getFilesDir(),"auto-vpn-control");
         Files.deleteIfExists(stop.toPath());Files.deleteIfExists(bootstrapOff.toPath());
+        Files.deleteIfExists(control.toPath());
         Activity activity=null;
         boolean connected=false,bootstrapDisabled=false,connectedWithoutBootstrap=false;
         try {
             activity=getInstrumentation().startActivitySync(new Intent(context,MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
             if(client){
+                AppSelection.saveAllApplications(context,"all".equals(args.getString("scope","selected")));
                 Set<String> selected=new HashSet<>();selected.add("org.uzel.probe.vpn");AppSelection.save(context,selected);
                 assertEquals("Install probe APK first",selected,new HashSet<>(AppSelection.validPackages(context)));
                 assertNull("User must grant Android VPN permission in app first",VpnService.prepare(context));
@@ -73,13 +77,30 @@ public final class AutoDiscoveryDeviceTest extends InstrumentationTestCase {
                 Thread.sleep(250);
             }
             NodeController.Snapshot ready=controller.snapshot();
-            assertTrue("Actual sharing and physical upload measurement required",ready.sharing&&!ready.busy&&ready.uploadBps>0);
+            assertTrue("Actual sharing and physical upload measurement required; status="+ready.status+
+                    ", sharing="+ready.sharing+", busy="+ready.busy+", upload="+ready.uploadBps,
+                    ready.sharing&&!ready.busy&&ready.uploadBps>0);
             long end=SystemClock.elapsedRealtime()+seconds*1000L,nextStatus=0;
-            boolean connectRequested=false;
+            boolean connectRequested=false;String selectedPeer=args.getString("peerId","");
+            if(!selectedPeer.isEmpty()&&!selectedPeer.matches("[0-9a-f]{64}"))throw new IllegalArgumentException("Exact peer fingerprint required");
             while(SystemClock.elapsedRealtime()<end&&!stop.exists()){
                 if(bootstrapOff.isFile()){
                     controller.setBootstrapUrl("");Files.deleteIfExists(bootstrapOff.toPath());bootstrapDisabled=true;
                     emit(new JSONObject().put("event","bootstrap_disabled"));
+                }
+                if(control.isFile()){
+                    assertTrue("Control applies only to the explicit client",client);
+                    assertTrue("Control marker bounds",control.length()<32);
+                    String command=new String(Files.readAllBytes(control.toPath()),java.nio.charset.StandardCharsets.UTF_8).trim();
+                    Files.deleteIfExists(control.toPath());
+                    if(!command.equals("disconnect")&&!command.equals("reconnect")&&!command.equals("all")&&!command.equals("selected"))throw new IllegalArgumentException("Unknown control");
+                    if(command.equals("all")||command.equals("selected"))AppSelection.saveAllApplications(context,command.equals("all"));
+                    getInstrumentation().runOnMainSync(controller::disconnect);
+                    NodeController.Snapshot disconnected=controller.snapshot();
+                    assertTrue("Disconnect must preserve sharing",disconnected.sharing);
+                    assertFalse("Disconnect must cancel outgoing VPN",disconnected.vpnConnected||disconnected.connecting);
+                    connectRequested=command.equals("disconnect");
+                    emit(new JSONObject().put("event","control").put("command",command).put("sharing",disconnected.sharing));
                 }
                 NodeController.Snapshot snapshot=controller.snapshot();
                 int announced=0,paired=0,reachable=0;
@@ -89,9 +110,12 @@ public final class AutoDiscoveryDeviceTest extends InstrumentationTestCase {
                     if(peer.reachable)reachable++;
                     if(peer.autoDiscovered&&peer.announced){announced++;only=peer;}
                 }
-                if(client&&!connectRequested&&!snapshot.busy&&"ONLINE".equals(snapshot.discoveryState)){
+                if(client&&!connectRequested&&!snapshot.busy&&!selectedPeer.isEmpty()){
+                    for(NodeController.Peer peer:snapshot.peers)if(peer.id.equals(selectedPeer)&&(peer.reachable||(peer.autoDiscovered&&peer.announced&&"ONLINE".equals(snapshot.discoveryState)))){controller.connect(peer.id);connectRequested=true;break;}
+                }
+                if(client&&!connectRequested&&!snapshot.busy&&selectedPeer.isEmpty()&&"ONLINE".equals(snapshot.discoveryState)){
                     assertTrue("Use an isolated bootstrap with exactly one other announced auto peer",announced<=1);
-                    if(announced==1){controller.connect(only.id);connectRequested=true;}
+                    if(announced==1){controller.connect(only.id);selectedPeer=only.id;connectRequested=true;}
                 }
                 if(snapshot.vpnConnected){
                     connected=true;
@@ -100,6 +124,7 @@ public final class AutoDiscoveryDeviceTest extends InstrumentationTestCase {
                 if(SystemClock.elapsedRealtime()>=nextStatus){
                     emit(new JSONObject().put("event","state").put("discovery",snapshot.discoveryState)
                             .put("pairing",snapshot.pairingState).put("vpn",snapshot.vpnConnected).put("status",snapshot.status)
+                            .put("connecting",snapshot.connecting).put("allApplications",AppSelection.allApplications(context))
                             .put("announced",announced).put("paired",paired).put("reachable",reachable).put("clients",snapshot.clients)
                             .put("bootstrapConfigured",!snapshot.discoveryURL.isEmpty()).put("bootstrapHosting",snapshot.bootstrapHosting)
                             .put("shared",snapshot.sharedBytes).put("received",snapshot.receivedBytes)
@@ -119,7 +144,8 @@ public final class AutoDiscoveryDeviceTest extends InstrumentationTestCase {
                 try{controller.setBootstrapUrl(originalUrl);}
                 finally{
                     AppSelection.save(context,originalSelection);
-                    try{Files.deleteIfExists(stop.toPath());Files.deleteIfExists(bootstrapOff.toPath());}
+                    AppSelection.saveAllApplications(context,originalAll);
+                    try{Files.deleteIfExists(stop.toPath());Files.deleteIfExists(bootstrapOff.toPath());Files.deleteIfExists(control.toPath());}
                     finally{if(activity!=null){Activity finalActivity=activity;getInstrumentation().runOnMainSync(finalActivity::finish);}}
                 }
             }

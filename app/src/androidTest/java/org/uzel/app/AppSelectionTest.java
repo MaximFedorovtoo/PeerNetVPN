@@ -14,11 +14,13 @@ public final class AppSelectionTest extends InstrumentationTestCase {
     private Context context;
     private Set<String> previous;
     private boolean existed;
+    private String previousMode;
 
     @Override protected void setUp() throws Exception {
         super.setUp();
         context = getInstrumentation().getTargetContext();
         existed = context.getSharedPreferences("vpn_apps", Context.MODE_PRIVATE).contains("selected");
+        previousMode=context.getSharedPreferences("vpn_apps",Context.MODE_PRIVATE).getString("mode",null);
         previous = new HashSet<>(context.getSharedPreferences("vpn_apps", Context.MODE_PRIVATE)
                 .getStringSet("selected", Collections.emptySet()));
         context.getSharedPreferences("vpn_apps", Context.MODE_PRIVATE).edit().clear().commit();
@@ -28,6 +30,8 @@ public final class AppSelectionTest extends InstrumentationTestCase {
         if (existed) context.getSharedPreferences("vpn_apps", Context.MODE_PRIVATE).edit()
                 .putStringSet("selected", previous).commit();
         else context.getSharedPreferences("vpn_apps", Context.MODE_PRIVATE).edit().remove("selected").commit();
+        if(previousMode==null)context.getSharedPreferences("vpn_apps",Context.MODE_PRIVATE).edit().remove("mode").commit();
+        else context.getSharedPreferences("vpn_apps",Context.MODE_PRIVATE).edit().putString("mode",previousMode).commit();
         super.tearDown();
     }
 
@@ -75,5 +79,26 @@ public final class AppSelectionTest extends InstrumentationTestCase {
         Set<String> loaded = AppSelection.load(context);
         loaded.clear();
         assertEquals(Collections.singleton(selected), AppSelection.load(context));
+    }
+
+    public void testAllModeIsExplicitAndRetainsSelectedApplications() {
+        assertFalse(AppSelection.allApplications(context));
+        assertFalse(AppSelection.vpnReady(context));
+        List<AppSelection.App> candidates=AppSelection.candidateApps(context);
+        Set<String> selected=candidates.isEmpty()?Collections.emptySet():Collections.singleton(candidates.get(0).packageName);
+        AppSelection.save(context,selected);
+        AppSelection.saveAllApplications(context,true);
+        assertTrue(AppSelection.allApplications(context));assertTrue(AppSelection.vpnReady(context));
+        assertEquals(selected,AppSelection.load(context));
+        AppSelection.saveAllApplications(context,false);
+        assertFalse(AppSelection.allApplications(context));assertEquals(selected,AppSelection.load(context));
+        assertEquals(!selected.isEmpty(),AppSelection.vpnReady(context));
+    }
+
+    public void testAllModeAllowsEmptySelectionAndUnknownModeFailsClosed() {
+        AppSelection.save(context,Collections.emptySet());AppSelection.saveAllApplications(context,true);
+        assertTrue(AppSelection.vpnReady(context));assertTrue(AppSelection.validPackages(context).isEmpty());
+        context.getSharedPreferences("vpn_apps",Context.MODE_PRIVATE).edit().putString("mode","corrupt").commit();
+        assertFalse(AppSelection.allApplications(context));assertFalse(AppSelection.vpnReady(context));
     }
 }

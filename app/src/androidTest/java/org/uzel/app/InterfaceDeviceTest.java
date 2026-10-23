@@ -12,6 +12,38 @@ import java.lang.reflect.Method;
 
 /** Product UI render smoke test; does not change sharing, routing or user preferences. */
 public final class InterfaceDeviceTest extends InstrumentationTestCase {
+    public void testOutgoingActionsStayAvailableWhileSharing()throws Exception {
+        MainActivity activity=(MainActivity)getInstrumentation().startActivitySync(new Intent(getInstrumentation().getTargetContext(),MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+        try {
+            getInstrumentation().runOnMainSync(()->{
+                try {
+                    java.lang.reflect.Field handler=MainActivity.class.getDeclaredField("handler");handler.setAccessible(true);
+                    java.lang.reflect.Field ticker=MainActivity.class.getDeclaredField("ticker");ticker.setAccessible(true);
+                    ((android.os.Handler)handler.get(activity)).removeCallbacks((Runnable)ticker.get(activity));
+                    Method show=MainActivity.class.getDeclaredMethod("showTab",int.class);show.setAccessible(true);show.invoke(activity,0);
+                    Method render=MainActivity.class.getDeclaredMethod("renderSnapshot",NodeController.Snapshot.class);render.setAccessible(true);
+                    java.lang.reflect.Field button=MainActivity.class.getDeclaredField("vpnButton");button.setAccessible(true);
+                    NodeController.Snapshot state=new NodeController.Snapshot();state.sharing=true;state.vpnConnected=true;state.busy=true;state.status="CONNECTED";
+                    render.invoke(activity,state);
+                    android.widget.Button action=(android.widget.Button)button.get(activity);
+                    assertTrue("Disconnect must remain enabled during background work",action.isEnabled());
+                    assertEquals(activity.getString(org.uzel.app.R.string.disconnect),action.getText().toString());
+                    state.vpnConnected=false;state.connecting=true;state.status="CONNECTING";render.invoke(activity,state);
+                    assertTrue("Pending VPN must be cancellable",action.isEnabled());
+                    assertEquals(activity.getString(org.uzel.app.R.string.cancel),action.getText().toString());
+                    show.invoke(activity,1);state.connecting=false;state.busy=false;state.vpnConnected=true;state.discoveryState="ONLINE";
+                    NodeController.Peer peer=new NodeController.Peer();peer.id="DE";peer.country="DE";peer.autoDiscovered=true;peer.announced=true;peer.freeSlots=2;state.peers.add(peer);
+                    render.invoke(activity,state);
+                    assertTrue("An active VPN must allow selecting a replacement peer",hasEnabledButton(activity.findViewById(android.R.id.content),activity.getString(R.string.ui_connect)));
+                }catch(Exception failure){throw new AssertionError(failure);}
+            });
+        }finally{getInstrumentation().runOnMainSync(activity::finish);}
+    }
+    private boolean hasEnabledButton(View view,String text){
+        if(view instanceof android.widget.Button&&text.contentEquals(((android.widget.Button)view).getText())&&view.isEnabled())return true;
+        if(view instanceof android.view.ViewGroup){android.view.ViewGroup group=(android.view.ViewGroup)view;for(int index=0;index<group.getChildCount();index++)if(hasEnabledButton(group.getChildAt(index),text))return true;}
+        return false;
+    }
     public void testReferenceScenes()throws Exception {
         Activity activity=getInstrumentation().startActivitySync(new Intent(getInstrumentation().getTargetContext(),MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
         try {

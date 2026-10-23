@@ -10,7 +10,7 @@ import java.util.stream.Stream;
 /** Installed/running Windows executables. The traffic driver selects process basenames, not full paths. */
 public final class DesktopApplications {
     private static final int MAX_SELECTED=64,MAX_INVENTORY=4096,MAX_OUTPUT_BYTES=8*1024*1024;
-    private static final Set<String> CARRIERS=Set.of("peernet.exe","uzelio.exe","uzel.exe","java.exe","javaw.exe","proxifyre.exe","powershell.exe","pwsh.exe");
+    private static final Set<String> CARRIERS=org.uzel.desktop.routing.WindowsRoutingConfig.CARRIERS;
     /** One process-name group; every process with processName() shares the same routing choice. */
     public record App(String name,Path executable){
         public App {Objects.requireNonNull(name);Objects.requireNonNull(executable);}
