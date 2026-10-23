@@ -41,6 +41,9 @@ public class MainActivity extends Activity {
     private TextView status, address, shareValue, receivedValue, rateValue, clientsValue, limitValue, detail;
     private Button sharingButton, vpnButton, measureButton;
     private String pendingPeer, peerSignature = "";
+    private String connectionPeer="",connectionName="";
+    private boolean connectionRequested;
+    private ProgressBar connectionProgress;
     private int selectedTab,selectedRegion;
     private TextView discoveryDetail,bootstrapAddress;
     private TextView sharingRateValue,sharingRateMinimum,sharingRateRequested;
@@ -73,7 +76,7 @@ public class MainActivity extends Activity {
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
         controller = NodeController.get(this);
-        if (state != null) { selectedTab = state.getInt("tab"); selectedRegion=state.getInt("region"); pendingPeer = state.getString("pendingPeer"); }
+        if (state != null) { selectedTab = state.getInt("tab"); selectedRegion=state.getInt("region"); pendingPeer = state.getString("pendingPeer");connectionPeer=state.getString("connectionPeer","");connectionName=state.getString("connectionName","");connectionRequested=state.getBoolean("connectionRequested",false); }
         getWindow().setStatusBarColor(BG); getWindow().setNavigationBarColor(BG);
         getWindow().getDecorView().setSystemUiVisibility(0);
         LinearLayout root = column(); root.setBackgroundColor(BG); root.setFitsSystemWindows(true);
@@ -84,7 +87,7 @@ public class MainActivity extends Activity {
         nav = new LinearLayout(this); nav.setGravity(Gravity.CENTER); nav.setBackground(raised(false,22)); nav.setPadding(dp(4),dp(7),dp(4),dp(5)); root.addView(nav);
         setContentView(root); showTab(selectedTab);
     }
-    @Override protected void onSaveInstanceState(Bundle out) { super.onSaveInstanceState(out); out.putInt("tab",selectedTab);out.putInt("region",selectedRegion); out.putString("pendingPeer",pendingPeer); }
+    @Override protected void onSaveInstanceState(Bundle out) { super.onSaveInstanceState(out); out.putInt("tab",selectedTab);out.putInt("region",selectedRegion); out.putString("pendingPeer",pendingPeer);out.putString("connectionPeer",connectionPeer);out.putString("connectionName",connectionName);out.putBoolean("connectionRequested",connectionRequested); }
     @Override protected void onResume() { super.onResume(); handler.removeCallbacks(ticker); ticker.run(); }
     @Override protected void onPause() { handler.removeCallbacks(ticker); super.onPause(); }
     private String s(String key,Object... args) { int id=stringResource(key); return args.length==0?getString(id):getString(id,args); }
@@ -215,6 +218,7 @@ public class MainActivity extends Activity {
         selectedTab=tab; content.removeAllViews(); nav.removeAllViews(); peerSignature="";
         status=address=shareValue=receivedValue=rateValue=clientsValue=limitValue=detail=null; publicSwitch=null; publicDetail=null; peers=null; sharingButton=vpnButton=measureButton=null;
         pairingDetail=null;pairingCreate=pairingImport=pairingShare=null;discoveryDetail=bootstrapAddress=null;
+        connectionProgress=null;
         sharingRateValue=sharingRateMinimum=sharingRateRequested=null;
         networkMap=null;searchTitle=searchHint=mapCount=null;searchProgress=null;searchAction=allRegions=searchDetails=null;regionChips=null;searchPanel=null;filterStrip=null;searchArtwork=null;
         String[] tabs={"home","nodes","statistics","settings"}; String[] symbols={"home","map","traffic","profile"};
@@ -229,8 +233,10 @@ public class MainActivity extends Activity {
         LinearLayout c=card();LinearLayout hero=new LinearLayout(this);hero.setGravity(Gravity.CENTER_VERTICAL);
         hero.addView(new PeerArtwork(this,"network",GREEN),new LinearLayout.LayoutParams(dp(84),dp(84)));
         LinearLayout summary=column();LinearLayout.LayoutParams sp=new LinearLayout.LayoutParams(0,-2,1);sp.setMarginStart(dp(10));hero.addView(summary,sp);status=label("",21,NAVY,true);summary.addView(status);address=label("",14,MUTED,false);summary.addView(address);c.addView(hero);
+        status.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
+        connectionProgress=new ProgressBar(this,null,android.R.attr.progressBarStyleHorizontal);connectionProgress.setIndeterminate(true);connectionProgress.setIndeterminateTintList(ColorStateList.valueOf(GREEN));connectionProgress.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);summary.addView(connectionProgress,new LinearLayout.LayoutParams(-1,dp(6)));connectionProgress.setVisibility(View.GONE);
         LinearLayout actions=new LinearLayout(this);c.addView(actions);
-        vpnButton=button(actions,s("choose_node"),false,()->{NodeController.Snapshot x=controller.snapshot();if(x.vpnConnected||x.connecting){controller.disconnect();refresh();}else showTab(1);});
+        vpnButton=button(actions,s("choose_node"),false,()->{NodeController.Snapshot x=controller.snapshot();if(x.vpnConnected||isConnecting(x)){connectionRequested=false;controller.disconnect();refresh();}else if(connectionFailed(x)&&!connectionPeer.isEmpty())connect(connectionPeer);else showTab(1);});
         sharingButton=button(actions,getString(R.string.ui_share),true,()->{NodeController.Snapshot x=controller.snapshot();if(x.sharing)controller.stopSharing();else{requestNotifications();controller.startSharing();}refresh();});
         for(int i=0;i<2;i++){LinearLayout.LayoutParams bp=new LinearLayout.LayoutParams(0,-2,1);bp.topMargin=dp(4);if(i==0)bp.setMarginEnd(dp(8));actions.getChildAt(i).setLayoutParams(bp);}
         LinearLayout stats=card();stats.setOrientation(LinearLayout.HORIZONTAL);
@@ -334,7 +340,10 @@ public class MainActivity extends Activity {
         renderSnapshot(x);
     }
     private void renderSnapshot(NodeController.Snapshot x) {
-        if(status!=null)status.setText(x.vpnConnected?getString(R.string.ui_connected):"OFF".equals(x.status)?getString(R.string.ui_disconnected):localStatus(x.status));
+        if(!x.connecting&&!x.busy)connectionRequested=false;
+        boolean connecting=isConnecting(x);
+        if(status!=null)status.setText(connecting?getString(R.string.ui_connecting):x.vpnConnected?getString(R.string.ui_connected):connectionFailed(x)?getString(R.string.ui_connection_failed):"OFF".equals(x.status)||"SHARING".equals(x.status)?getString(R.string.ui_disconnected):localStatus(x.status));
+        if(connectionProgress!=null)connectionProgress.setVisibility(connecting?View.VISIBLE:View.GONE);
         updateDiscovery(x);
         if(discoveryDetail!=null){String value=getString(R.string.discovery_state,getString(discoveryStateResource(x.discoveryState)));if(x.bootstrapHosting)value+="\n"+getString(R.string.discovery_hosting,x.bootstrapPort);discoveryDetail.setText(value);}
         if(bootstrapAddress!=null)bootstrapAddress.setText(empty(x.discoveryURL)?getString(R.string.discovery_not_configured):x.discoveryURL);
@@ -353,7 +362,7 @@ public class MainActivity extends Activity {
         if(pairingCreate!=null)pairingCreate.setEnabled(x.sharing&&!x.busy);
         if(pairingImport!=null)pairingImport.setEnabled(x.sharing&&!x.busy);
         if(pairingShare!=null)pairingShare.setEnabled(!x.pairingCode.isEmpty());
-        if(address!=null){address.setText(x.vpnConnected&&!empty(x.connectedCountry)?flag(x.connectedCountry)+"  "+country(x.connectedCountry):"");address.setVisibility(address.length()==0?View.GONE:View.VISIBLE);}
+        if(address!=null){address.setText(connecting&&!connectionName.isEmpty()?getString(R.string.ui_connecting_to,connectionName):x.vpnConnected&&!empty(x.connectedCountry)?flag(x.connectedCountry)+"  "+country(x.connectedCountry):x.sharing?getString(R.string.status_sharing):"");address.setVisibility(address.length()==0?View.GONE:View.VISIBLE);}
         if(clientsValue!=null)clientsValue.setText(getString(R.string.ui_connected_count,x.clients));
         if(limitValue!=null){limitValue.setText(x.shareLimitBps>0?getString(R.string.ui_limit,speed(x.shareLimitBps)):"");limitValue.setVisibility(x.shareLimitBps>0?View.VISIBLE:View.GONE);}
         if(sharingRateValue!=null)sharingRateValue.setText(x.shareLimitBps==0?getString(R.string.sharing_rate_unlimited):getString(R.string.sharing_rate_effective,SharingRateInput.format(x.shareLimitBps)));
@@ -364,7 +373,7 @@ public class MainActivity extends Activity {
             sharingRateRequested.setVisibility(raised?View.VISIBLE:View.GONE);
         }
         if(sharingButton!=null){sharingButton.setText(getString(x.sharing?R.string.ui_sharing_on:R.string.ui_share));sharingButton.setContentDescription(getString(x.sharing?R.string.ui_stop_share:R.string.ui_share));sharingButton.setEnabled(x.sharing||!x.busy);}
-        if(vpnButton!=null){vpnButton.setText(s(x.vpnConnected?"disconnect":x.connecting?"cancel":"choose_node"));vpnButton.setEnabled(x.vpnConnected||x.connecting||!x.busy);}
+        if(vpnButton!=null){vpnButton.setText(connecting?s("cancel"):x.vpnConnected?s("disconnect"):connectionFailed(x)&&!connectionPeer.isEmpty()?getString(R.string.ui_connection_retry):s("choose_node"));vpnButton.setEnabled(x.vpnConnected||connecting||!x.busy);}
         if(shareValue!=null)shareValue.setText(Formatter.formatFileSize(this,x.sharedBytes));
         if(receivedValue!=null)receivedValue.setText(Formatter.formatFileSize(this,x.receivedBytes));
         if(rateValue!=null)rateValue.setText(speed(x.uploadBps));
@@ -457,8 +466,11 @@ public class MainActivity extends Activity {
             TextView meta=label(state,11,p.reachable?GREEN:MUTED,false);c.addView(meta);c.setContentDescription(country(p.country)+", "+state+", "+getString(R.string.ui_slots,slots));
         }
     }
-    private void connect(String id){if(!hasSelectedApps())return;Intent prepare=VpnService.prepare(this);pendingPeer=id;if(prepare!=null)startActivityForResult(prepare,71);else{controller.connect(id);pendingPeer=null;showTab(0);}}
-    @Override protected void onActivityResult(int request,int result,Intent data){super.onActivityResult(request,result,data);if(request==71){String id=pendingPeer;pendingPeer=null;if(result==RESULT_OK&&id!=null&&hasSelectedApps()){controller.connect(id);showTab(0);}}}
+    private static boolean connectionFailed(NodeController.Snapshot x){return !x.connecting&&!x.vpnConnected&&("ERROR".equals(x.status)||"UNREACHABLE".equals(x.status)||"CAPACITY".equals(x.status));}
+    private boolean isConnecting(NodeController.Snapshot x){return x.connecting||(connectionRequested&&x.busy&&!x.vpnConnected);}
+    private void beginConnection(String id){connectionPeer=id;connectionName=id.substring(0,Math.min(12,id.length()));for(NodeController.Peer peer:controller.snapshot().peers)if(id.equals(peer.id)&&!empty(peer.country)){connectionName=country(peer.country)+" · "+connectionName;break;}connectionRequested=true;controller.connect(id);showTab(0);}
+    private void connect(String id){if(!hasSelectedApps())return;Intent prepare=VpnService.prepare(this);pendingPeer=id;if(prepare!=null)startActivityForResult(prepare,71);else{pendingPeer=null;beginConnection(id);}}
+    @Override protected void onActivityResult(int request,int result,Intent data){super.onActivityResult(request,result,data);if(request==71){String id=pendingPeer;pendingPeer=null;if(result==RESULT_OK&&id!=null&&hasSelectedApps())beginConnection(id);}}
     private void requestNotifications(){if(Build.VERSION.SDK_INT>=33&&checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)!=android.content.pm.PackageManager.PERMISSION_GRANTED)requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS},72);}
     private String sharingRateMinimumText(long minimum){
         return minimum>0?getString(R.string.sharing_rate_minimum,SharingRateInput.format(minimum)):getString(R.string.sharing_rate_minimum_unknown);

@@ -5,7 +5,7 @@
     <string name="ui_open_map">Open map</string>
     <string name="ui_share">Share internet</string>
     <string name="ui_stop_share">Stop sharing</string>
-    <string name="ui_connected">Connected</string>
+    <string name="ui_connected">Connection established</string>
     <string name="ui_disconnected">Not connected</string>
     <string name="ui_connect">Connect</string>
     <string name="ui_received">Received</string>
@@ -43,4 +43,8 @@
     <string name="ui_sharing_on">Sharing is on</string>
     <string name="ui_world_nodes">Nodes around the world</string>
   <string name="ui_filter_all">All</string>
+    <string name="ui_connecting">Connecting…</string>
+    <string name="ui_connecting_to">Connecting to %1$s</string>
+    <string name="ui_connection_failed">Could not connect</string>
+    <string name="ui_connection_retry">Retry</string>
 </resources>

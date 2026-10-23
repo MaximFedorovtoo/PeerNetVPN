@@ -5,7 +5,7 @@
     <string name="ui_open_map">打开地图</string>
     <string name="ui_share">共享网络</string>
     <string name="ui_stop_share">停止共享</string>
-    <string name="ui_connected">已连接</string>
+    <string name="ui_connected">连接已建立</string>
     <string name="ui_disconnected">未连接</string>
     <string name="ui_connect">连接</string>
     <string name="ui_received">已接收</string>
@@ -43,4 +43,8 @@
     <string name="ui_sharing_on">正在共享网络</string>
     <string name="ui_world_nodes">附近及全球的节点</string>
   <string name="ui_filter_all">全部</string>
+    <string name="ui_connecting">正在连接…</string>
+    <string name="ui_connecting_to">正在连接到 %1$s</string>
+    <string name="ui_connection_failed">无法连接</string>
+    <string name="ui_connection_retry">重试</string>
 </resources>

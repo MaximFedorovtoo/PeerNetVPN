@@ -5,7 +5,7 @@
     <string name="ui_open_map">マップを開く</string>
     <string name="ui_share">インターネットを共有</string>
     <string name="ui_stop_share">共有を停止</string>
-    <string name="ui_connected">接続済み</string>
+    <string name="ui_connected">接続しました</string>
     <string name="ui_disconnected">未接続</string>
     <string name="ui_connect">接続</string>
     <string name="ui_received">受信</string>
@@ -43,4 +43,8 @@
     <string name="ui_sharing_on">ネット共有中</string>
     <string name="ui_world_nodes">近くと世界中のノード</string>
   <string name="ui_filter_all">すべて</string>
+    <string name="ui_connecting">接続中…</string>
+    <string name="ui_connecting_to">%1$s に接続中</string>
+    <string name="ui_connection_failed">接続できませんでした</string>
+    <string name="ui_connection_retry">再試行</string>
 </resources>
